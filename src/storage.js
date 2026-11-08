@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = {
   provider: "groq", // "groq" | "openai"
   apiKey: "",
   model: "openai/gpt-oss-120b",
+  sellerName: "",
   businessName: "",
   salesScript:
     "1. Cumprimente pelo nome e se apresente.\n" +

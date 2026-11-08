@@ -1,7 +1,7 @@
 import { getSettings, saveSettings, PROVIDERS } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["provider", "model", "apiKey", "businessName", "salesScript", "tone", "autoSendDelaySec"];
+const FIELDS = ["provider", "model", "apiKey", "sellerName", "businessName", "salesScript", "tone", "autoSendDelaySec"];
 
 function fillModels(models) {
   $("models").innerHTML = models.map((m) => `<option value="${m}">`).join("");

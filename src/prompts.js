@@ -8,6 +8,7 @@ function transcript(conversation) {
 
 function context(settings, conversation) {
   return (
+    `Vendedor: ${settings.sellerName || "(não informado)"}\n` +
     `Empresa: ${settings.businessName || "(não informado)"}\n` +
     `Contato: ${conversation.chatName}\n` +
     `Data/hora atual: ${new Date().toLocaleString("pt-BR")}\n\n` +
@@ -47,6 +48,9 @@ export function replyPrompt(settings, conversation, instruction = "") {
         `Tom: ${settings.tone}. ` +
         "Regras: português do Brasil, sem markdown, sem aspas, no máximo 3 frases curtas, " +
         "nunca invente preço, prazo ou condição que não esteja no script. " +
+        "Nunca invente nomes: use o nome do vendedor só se ele estiver informado (senão não se apresente pelo nome) " +
+        "e só chame o cliente pelo nome se o nome do contato parecer um nome de pessoa, nunca um número de telefone. " +
+        "Se a conversa já começou, não se reapresente. " +
         "Responda só com o texto da mensagem.",
     },
     {
