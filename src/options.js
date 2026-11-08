@@ -1,4 +1,5 @@
-import { getSettings, saveSettings, PROVIDERS } from "./storage.js";
+import { getSettings, saveSettings, PROVIDERS, DEFAULT_SETTINGS } from "./storage.js";
+import { initTestChat } from "./testchat.js";
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["provider", "model", "apiKey", "sellerName", "businessName", "salesScript", "tone", "autoSendDelaySec"];
@@ -97,25 +98,41 @@ $("addStep").onclick = () => {
   renderSteps();
 };
 
-function say(text, err = false) {
+function say(text, kind = "") {
   $("msg").textContent = text;
-  $("msg").className = err ? "err" : "";
+  $("msg").className = kind === true ? "err" : kind;
+}
+
+// Lê os campos como estão agora (o chat de teste usa isto, mesmo sem salvar).
+function readForm() {
+  const s = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+  s.apiKey = s.apiKey.trim();
+  s.autoSendDelaySec = Number(s.autoSendDelaySec) || 20;
+  s.tone = s.tone || DEFAULT_SETTINGS.tone;
+  s.cadence = steps.map((x) => ({ minutes: Number(x.minutes), mode: x.mode, text: x.text || "" }));
+  return s;
 }
 
 async function save() {
-  const patch = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
-  patch.apiKey = patch.apiKey.trim();
-  patch.autoSendDelaySec = Number(patch.autoSendDelaySec) || 20;
+  const patch = readForm();
   const bad = steps.findIndex((s) => s.mode === "fixed" && !s.text.trim());
   if (bad >= 0) throw new Error(`O passo ${bad + 1} está como texto fixo, mas sem texto.`);
-  patch.cadence = steps.map((s) => ({ minutes: Number(s.minutes), mode: s.mode, text: s.text || "" }));
   await saveSettings(patch);
+  $("save").classList.remove("dirty");
 }
+
+// Mostra que há alterações não salvas.
+document.querySelector(".settings").addEventListener("input", () => {
+  $("save").classList.add("dirty");
+  say("Alterações não salvas · o teste ao lado já usa elas");
+});
+
+initTestChat(readForm);
 
 $("save").onclick = async () => {
   try {
     await save();
-    say("Salvo.");
+    say("Salvo.", "ok");
   } catch (e) {
     say(e.message, true);
   }

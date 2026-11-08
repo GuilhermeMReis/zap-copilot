@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Zap Copilot — IA de vendas para WhatsApp Web",
   "short_name": "Zap Copilot",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Analisa conversas, agenda follow-ups e sugere respostas seguindo o seu script de vendas. Roda local, com a sua chave da OpenAI ou Groq.",
   "permissions": ["storage", "alarms", "notifications"],
   "host_permissions": [
