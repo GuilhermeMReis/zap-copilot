@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Zap Copilot demo</title>
+<link rel="stylesheet" href="../../src/panel.css" />
+<style>
+  /* Réplica simplificada do WhatsApp Web (tema claro) só para os prints. Conversa fictícia. */
+  html, body { margin: 0; height: 100%; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { background: #eae6df; overflow: hidden; }
+  #app { position: absolute; inset: 0; display: flex; }
+  .rail { width: 64px; background: #f0f2f5; border-right: 1px solid #e9edef; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 18px; }
+  .rail i { width: 24px; height: 24px; border-radius: 6px; background: #c8cdd1; display: block; }
+  .rail i.on { background: #25d366; }
+  .side { width: 340px; background: #fff; border-right: 1px solid #e9edef; display: flex; flex-direction: column; }
+  .side h1 { font-size: 22px; margin: 18px 18px 12px; color: #111b21; font-weight: 700; }
+  .search { margin: 0 14px 10px; background: #f0f2f5; border-radius: 10px; padding: 9px 14px; color: #8696a0; font-size: 14px; }
+  .chips { display: flex; gap: 8px; margin: 0 14px 8px; }
+  .chips span { font-size: 13px; padding: 5px 12px; border-radius: 99px; background: #f0f2f5; color: #54656f; }
+  .chips span.on { background: #d9fdd3; color: #008069; }
+  .chat { display: flex; gap: 12px; padding: 10px 14px; align-items: center; }
+  .chat.on { background: #f0f2f5; }
+  .av { width: 48px; height: 48px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 18px; }
+  .chat div { flex: 1; min-width: 0; border-bottom: 1px solid #f0f2f5; padding-bottom: 10px; }
+  .chat b { font-weight: 500; color: #111b21; font-size: 16px; display: flex; justify-content: space-between; }
+  .chat b small { font-weight: 400; color: #667781; font-size: 12px; }
+  .chat p { margin: 3px 0 0; color: #667781; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; gap: 6px; }
+  .chat em { font-style: normal; background: #25d366; color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0;
+    background: #efeae2 radial-gradient(#e4ddd3 1px, transparent 1px) 0 0/18px 18px; }
+  .head { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #e9edef; }
+  .head .av { width: 40px; height: 40px; font-size: 15px; }
+  .head b { font-weight: 500; color: #111b21; display: block; }
+  .head small { color: #667781; font-size: 13px; }
+  .msgs { flex: 1; padding: 22px 7% 10px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; justify-content: flex-end; }
+  .day { align-self: center; background: #fff; color: #54656f; font-size: 12.5px; padding: 5px 12px; border-radius: 8px; margin: 8px 0; box-shadow: 0 1px .5px rgba(11,20,26,.13); }
+  .m { max-width: 62%; padding: 7px 10px 8px; border-radius: 8px; font-size: 14.2px; line-height: 1.4; color: #111b21; box-shadow: 0 1px .5px rgba(11,20,26,.13); position: relative; }
+  .m small { color: #667781; font-size: 11px; margin-left: 10px; float: right; margin-top: 6px; }
+  .in { align-self: flex-start; background: #fff; }
+  .out { align-self: flex-end; background: #d9fdd3; }
+  .out small::after { content: " ✓✓"; color: #53bdeb; }
+  .composer { background: #f0f2f5; padding: 10px 16px; display: flex; gap: 12px; align-items: center; }
+  .composer div { flex: 1; background: #fff; border-radius: 10px; padding: 11px 14px; color: #8696a0; font-size: 15px; }
+  .composer div.typed { color: #111b21; }
+</style>
+</head>
+<body class="zc-open">
+<div id="app">
+  <div class="rail"><i class="on"></i><i></i><i></i><i></i></div>
+  <div class="side">
+    <h1>WhatsApp</h1>
+    <div class="search">Pesquisar ou começar uma nova conversa</div>
+    <div class="chips"><span class="on">Tudo</span><span>Não lidas</span><span>Favoritas</span></div>
+    <div class="chat on"><span class="av" style="background:#7e57c2">CM</span><div><b>Carla Mendes <small>14:32</small></b><p>Mas achei um pouco caro…</p></div></div>
+    <div class="chat"><span class="av" style="background:#26a69a">RS</span><div><b>Rafael Souza <small>14:05</small></b><p>Fechado, me manda o link 🙌 <em>2</em></p></div></div>
+    <div class="chat"><span class="av" style="background:#ef6c00">JP</span><div><b>Juliana Prado <small>13:41</small></b><p>Vou ver com meu sócio e te falo</p></div></div>
+    <div class="chat"><span class="av" style="background:#5c6bc0">BT</span><div><b>Bruno Teixeira <small>12:18</small></b><p>Vocês atendem fora de SP?</p></div></div>
+    <div class="chat"><span class="av" style="background:#ec407a">LA</span><div><b>Larissa Alves <small>Ontem</small></b><p>Você: Te mando a proposta amanhã cedo</p></div></div>
+    <div class="chat"><span class="av" style="background:#8d6e63">MO</span><div><b>Marcos Oliveira <small>Ontem</small></b><p>Obrigado pelas informações!</p></div></div>
+  </div>
+  <div class="main">
+    <div class="head"><span class="av" style="background:#7e57c2">CM</span><div><b>Carla Mendes</b><small>online</small></div></div>
+    <div class="msgs">
+      <div class="day">HOJE</div>
+      <div class="m in">Oi! Vi o anúncio da mentoria de agentes de IA. Como funciona?<small>14:20</small></div>
+      <div class="m out">Oi, Carla! São 8 semanas montando agentes de IA para o seu negócio, com aulas ao vivo e suporte. Você já usa alguma automação hoje?<small>14:22</small></div>
+      <div class="m in">Ainda não. Tenho uma clínica e perco muito paciente no WhatsApp, demoro pra responder<small>14:27</small></div>
+      <div class="m out">Faz sentido. A primeira coisa que montamos é justamente um agente que responde e agenda na hora 😉<small>14:28</small></div>
+      <div class="m in">Qual o valor?<small>14:31</small></div>
+      <div class="m in">Mas achei um pouco caro da última vez que vi…<small>14:32</small></div>
+    </div>
+    <div class="composer"><div id="composer">Digite uma mensagem</div></div>
+  </div>
+</div>
+
+<div id="zc-root">
+  <div id="zc-toast" class="zc-hidden">
+    <p><b>Cadência 1/3</b> · Carla Mendes</p>
+    <blockquote>Oi, Carla! Conseguiu pensar na mentoria? Se o valor for o ponto, posso te mostrar a opção parcelada.</blockquote>
+    <div class="zc-row"><span>Enviando em <b>14</b>s</span><button id="zc-cancel">Cancelar</button><button id="zc-now">Enviar já</button></div>
+  </div>
+  <aside id="zc-panel">
+    <header class="zc-head">
+      <span class="zc-logo">✦</span>
+      <div class="zc-title"><strong>Zap Copilot</strong><span id="zc-chat">Carla Mendes</span></div>
+      <button class="zc-icon">⚙</button><button class="zc-icon">✕</button>
+    </header>
+    <nav class="zc-tabs">
+      <button data-tab="conversa">Conversa</button>
+      <button data-tab="auto">Automação</button>
+      <button data-tab="agenda">Agenda</button>
+    </nav>
+    <div class="zc-body">
+      <div class="zc-pane" data-pane="conversa">
+        <div class="zc-card">
+          <div class="zc-card-head"><h3>Raio-x da conversa</h3><button class="zc-btn zc-soft">Analisar</button></div>
+          <div id="zc-analysis">
+            <div class="zc-tags"><span class="zc-tag">Objeção</span><span class="zc-tag zc-temp zc-quente">● quente</span></div>
+            <p class="zc-summary">Dona de clínica que perde pacientes por demora no WhatsApp. Gostou da proposta, mas travou no preço.</p>
+            <dl class="zc-facts">
+              <dt>Intenção</dt><dd>Resolver o atendimento lento da clínica</dd>
+              <dt>Objeções</dt><dd><span class="zc-chip">preço</span></dd>
+              <dt>No script</dt><dd>Passo 4: tratar objeção com prova</dd>
+            </dl>
+            <div class="zc-next"><b>Próximo passo</b>Mostrar o retorno de um paciente recuperado e oferecer o parcelamento.</div>
+          </div>
+        </div>
+        <div class="zc-card">
+          <div class="zc-card-head"><h3>Próxima mensagem</h3><button class="zc-btn zc-soft">✦ Sugerir</button></div>
+          <textarea id="zc-reply" rows="4">Entendo, Carla! Pensa assim: se a clínica recupera 2 pacientes por mês que hoje se perdem no WhatsApp, a mentoria se paga. E dá para parcelar em 12x. Quer que eu te mande as condições?</textarea>
+          <details class="zc-more"><summary>Orientar a IA</summary></details>
+          <div class="zc-actions"><button class="zc-btn zc-ghost">Colocar no chat</button><button class="zc-btn zc-primary">Enviar</button></div>
+        </div>
+      </div>
+
+      <div class="zc-pane" data-pane="auto">
+        <div class="zc-card zc-toggle-row">
+          <div><h3>Responder sozinho</h3><p>A IA responde às mensagens novas desta conversa, mesmo se ela estiver fechada. Você tem alguns segundos para cancelar.</p></div>
+          <label class="zc-switch"><input type="checkbox" checked /><span></span></label>
+        </div>
+        <div class="zc-card zc-toggle-row">
+          <div><h3>Follow-up se o lead sumir</h3><p>Manda 3 follow-up(s) se ele não responder: 5 min → 10 min → 15 min. Próximo (1/3) em 4 min.</p><button class="zc-link">Editar passos</button></div>
+          <label class="zc-switch"><input type="checkbox" checked /><span></span></label>
+        </div>
+        <div class="zc-card">
+          <h3>Automação ligada em</h3>
+          <ul class="zc-list">
+            <li class="zc-auto-item"><b>Carla Mendes</b><span><span class="zc-chip">Responde <button>✕</button></span><span class="zc-chip">Follow-up <button>✕</button></span></span></li>
+            <li class="zc-auto-item"><b>Juliana Prado</b><span><span class="zc-chip">Follow-up <button>✕</button></span></span></li>
+            <li class="zc-auto-item"><b>Bruno Teixeira</b><span><span class="zc-chip">Responde <button>✕</button></span></span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="zc-pane" data-pane="agenda">
+        <button class="zc-btn zc-primary zc-block">✦ Agendar follow-up desta conversa</button>
+        <div class="zc-card zc-draft">
+          <h3>Sugestão da IA</h3>
+          <p class="zc-muted">Ela disse que ia pensar no valor; amanhã cedo, antes da agenda da clínica, é o melhor momento para retomar.</p>
+          <label>Quando</label>
+          <input type="datetime-local" value="2026-11-10T08:30" />
+          <label>Mensagem</label>
+          <textarea rows="3">Bom dia, Carla! Separei um caso de uma clínica parecida com a sua que recuperou 9 pacientes no 1º mês. Posso te mandar?</textarea>
+          <div class="zc-actions"><button class="zc-btn zc-ghost">Descartar</button><button class="zc-btn zc-primary">Aprovar</button></div>
+        </div>
+        <h4 class="zc-section">Próximos</h4>
+        <ul class="zc-list">
+          <li class="zc-item"><div class="zc-item-top"><b>Juliana Prado</b><span>em 3h05 · ter., 10/11, 17:00</span></div><p>Oi, Juliana! Conseguiu conversar com seu sócio? Posso ajudar a tirar alguma dúvida dele.</p><div class="zc-item-actions"><button class="zc-link">Abrir conversa</button><button class="zc-link zc-danger">Cancelar</button></div></li>
+        </ul>
+        <h4 class="zc-section">Já enviados</h4>
+        <ul class="zc-list">
+          <li class="zc-item zc-done"><div class="zc-item-top"><b>Larissa Alves</b><span class="zc-outcome zc-ok">enviado</span></div><p>Bom dia, Larissa! Segue a proposta que combinamos ontem.</p></li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+  const view = new URLSearchParams(location.search).get("view") || "conversa";
+  document.querySelectorAll(".zc-tabs button").forEach((b) => b.classList.toggle("zc-on", b.dataset.tab === view || (view === "toast" && b.dataset.tab === "auto")));
+  document.querySelectorAll(".zc-pane").forEach((p) => (p.hidden = !(p.dataset.pane === view || (view === "toast" && p.dataset.pane === "auto"))));
+  if (view === "toast") document.querySelector("#zc-toast").classList.remove("zc-hidden");
+  if (view === "conversa") {
+    const c = document.querySelector("#composer");
+    c.textContent = "Entendo, Carla! Pensa assim: se a clínica recupera 2 pacientes por mês…";
+    c.classList.add("typed");
+  }
+</script>
+</body>
+</html>

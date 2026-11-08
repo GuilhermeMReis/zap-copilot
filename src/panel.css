@@ -198,3 +198,4 @@ body.dark #zc-panel input[type=datetime-local] { color-scheme: dark; }
 #zc-toast .zc-row span { flex: 1; color: var(--zc-muted); }
 #zc-toast button { border: 1px solid var(--zc-line); background: transparent; color: var(--zc-text); border-radius: 8px; padding: 7px 12px; }
 #zc-toast #zc-now { background: var(--zc-accent); border-color: var(--zc-accent); color: var(--zc-accent-ink); }
+#zc-analysis { display: flex; flex-direction: column; gap: 10px; }

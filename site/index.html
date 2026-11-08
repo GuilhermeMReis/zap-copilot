@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zap Copilot — IA de vendas dentro do seu WhatsApp Web | Mavra</title>
+<meta name="description" content="Extensão gratuita e open source para o Chrome: a IA analisa suas conversas do WhatsApp Web, sugere respostas pelo seu script de vendas, agenda follow-ups e retoma leads que sumiram. Roda no seu navegador, com a sua chave da Groq ou OpenAI." />
+<meta property="og:title" content="Zap Copilot — IA de vendas dentro do seu WhatsApp Web" />
+<meta property="og:description" content="Grátis e open source. Analisa conversas, sugere respostas, agenda follow-ups e retoma leads parados." />
+<meta property="og:image" content="https://zap.mavra.app/assets/shots/conversa.jpg" />
+<meta property="og:url" content="https://zap.mavra.app/" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="assets/icon128.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream: #f6f3ea;
+    --cream-2: #efebe0;
+    --ink: #12110f;
+    --ink-2: #4b4842;
+    --muted: #7a766d;
+    --line: #e2ddcf;
+    --teal: #2f8f84;
+    --teal-ink: #ffffff;
+    --teal-soft: #dcebe6;
+    --dark: #12110f;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font: 16px/1.55 Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  img { max-width: 100%; height: auto; display: block; }
+  html, body { overflow-x: hidden; }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  h1, h2, h3 { font-family: "Inter Tight", Inter, sans-serif; font-weight: 400; letter-spacing: -0.035em; margin: 0; }
+  h1 { font-size: clamp(42px, 6vw, 74px); line-height: 1.02; }
+  h2 { font-size: clamp(32px, 4.2vw, 52px); line-height: 1.06; }
+  h3 { font-size: 22px; letter-spacing: -0.02em; line-height: 1.2; }
+  .serif { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-size: 18px; color: var(--ink-2); margin-bottom: 18px; }
+  .eyebrow::before { content: ""; width: 9px; height: 9px; background: var(--ink); }
+  .lead { font-size: 20px; color: var(--ink-2); max-width: 560px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 15px 26px; border-radius: 999px; font-weight: 500; text-decoration: none; font-size: 16px; transition: transform .15s ease, filter .15s ease; }
+  .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .btn-teal { background: var(--teal); color: var(--teal-ink); }
+  .btn-ink { background: var(--ink); color: var(--cream); }
+  .btn-line { border: 1px solid var(--ink); }
+  .link { text-decoration: none; border-bottom: 1.5px solid var(--ink); padding-bottom: 3px; font-weight: 500; }
+  .arrow::after { content: "→"; }
+
+  /* Faixa e navegação */
+  .ribbon { background: var(--teal); color: #fff; text-align: center; font-size: 14px; padding: 9px 16px; }
+  .ribbon a { color: #fff; }
+  nav.top { position: sticky; top: 0; z-index: 20; background: rgba(246, 243, 234, .88); backdrop-filter: blur(12px); border-bottom: 1px solid transparent; }
+  nav.top.scrolled { border-bottom-color: var(--line); }
+  nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 74px; }
+  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .brand img { height: 22px; width: auto; }
+  .brand span { font-family: "Inter Tight", sans-serif; font-size: 18px; color: var(--ink-2); padding-left: 12px; border-left: 1px solid var(--line); }
+  .menu { display: flex; gap: 26px; margin-left: auto; font-size: 15px; }
+  .menu a { text-decoration: none; color: var(--ink-2); }
+  .menu a:hover { color: var(--ink); }
+  nav.top .btn { padding: 11px 20px; font-size: 15px; }
+
+  /* Hero */
+  .hero { padding: 72px 0 40px; position: relative; overflow: hidden; }
+  .hero .grid { display: grid; grid-template-columns: 1fr; gap: 28px; }
+  .hero .ctas { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; margin-top: 10px; }
+  .hero .fine { font-size: 14px; color: var(--muted); display: flex; gap: 18px; flex-wrap: wrap; }
+  .hero .fine b { font-weight: 500; color: var(--ink-2); }
+  .stage { position: relative; margin-top: 40px; perspective: 2200px; }
+  .stage::before { content: ""; position: absolute; inset: 30% -10% -10%; background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0/64px 64px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0/64px 64px;
+    mask: radial-gradient(ellipse at center, #000 30%, transparent 70%); opacity: .7; }
+  .shot { position: relative; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 40px 80px -30px rgba(18, 17, 15, .35), 0 0 0 1px rgba(18, 17, 15, .06); }
+  .stage .shot { transform: rotateX(14deg) rotateZ(-2deg); transform-origin: center top; max-width: 1080px; margin: 0 auto; }
+  .chip { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 9px; background: rgba(246, 243, 234, .94); border: 1px solid var(--line); border-radius: 999px; padding: 10px 18px; font-size: 15px; box-shadow: 0 10px 30px -12px rgba(18,17,15,.35); white-space: nowrap; }
+  .chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 4px var(--teal-soft); }
+  .c1 { left: 2%; top: 30%; } .c2 { right: 1%; top: 12%; } .c3 { left: 14%; bottom: 6%; } .c4 { right: 8%; bottom: 14%; }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip { animation: float 6s ease-in-out infinite; }
+    .c2 { animation-delay: -1.5s; } .c3 { animation-delay: -3s; } .c4 { animation-delay: -4.5s; }
+    @keyframes float { 50% { transform: translateY(-8px); } }
+  }
+
+  /* Faixa escura */
+  .strip { background: var(--dark); color: var(--cream); padding: 44px 0; text-align: center; }
+  .strip p { margin: 0 0 18px; color: #a19d93; font-size: 15px; }
+  .strip ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 46px; font-family: "Inter Tight", sans-serif; font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -0.02em; }
+  .strip li small { font-family: Inter, sans-serif; font-size: 13px; color: var(--teal-soft); background: rgba(47,143,132,.25); padding: 2px 9px; border-radius: 99px; vertical-align: middle; margin-left: 8px; letter-spacing: 0; }
+
+  section { padding: 110px 0; }
+  .head-center { text-align: center; max-width: 760px; margin: 0 auto 64px; }
+  .head-center .lead { margin: 18px auto 0; }
+
+  /* Recursos alternados */
+  .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 64px; align-items: center; padding: 48px 0; border-top: 1px solid var(--line); }
+  .feature:nth-of-type(even) { grid-template-columns: 1.25fr 1fr; }
+  .feature:nth-of-type(even) .copy { order: 2; }
+  .feature .num { font-family: "Instrument Serif", serif; font-style: italic; font-size: 20px; color: var(--teal); }
+  .feature h3 { font-size: clamp(26px, 2.8vw, 34px); margin: 8px 0 16px; letter-spacing: -0.03em; }
+  .feature p { color: var(--ink-2); margin: 0 0 18px; }
+  .feature ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .feature li { display: flex; gap: 12px; color: var(--ink-2); }
+  .feature li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 3px; border-radius: 50%; background: var(--teal-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.2l2.6 2.6L12 5.4' fill='none' stroke='%232f8f84' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat; }
+  .feature .shot.crop-panel img { width: 100%; }
+  .crop { aspect-ratio: 4 / 3.1; }
+  .crop img { width: 100%; height: 100%; object-fit: cover; }
+  .crop.right img { object-position: 100% 0; }
+  .crop.center img { object-position: 62% 100%; }
+  .crop.top img { object-position: 0 0; }
+
+  /* Privacidade */
+  .dark { background: var(--dark); color: var(--cream); }
+  .dark .eyebrow { color: #c9c4b8; } .dark .eyebrow::before { background: var(--cream); }
+  .dark .lead { color: #b9b4a8; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card { border: 1px solid #2c2a26; border-radius: var(--radius); padding: 30px; background: #1a1916; }
+  .card .ico { width: 44px; height: 44px; border-radius: 12px; background: rgba(47,143,132,.18); display: grid; place-items: center; margin-bottom: 22px; }
+  .card h3 { margin-bottom: 10px; }
+  .card p { margin: 0; color: #b9b4a8; font-size: 15px; }
+
+  /* Instalação */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: s; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; position: relative; }
+  .step::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--cream); font-weight: 600; font-size: 14px; margin-bottom: 18px; }
+  .step h3 { font-size: 18px; margin-bottom: 8px; }
+  .step p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; background: var(--cream-2); border-radius: 6px; padding: 2px 6px; }
+  .install-cta { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 44px; }
+  .terminal { margin: 26px auto 0; max-width: 620px; background: var(--dark); color: #e8e3d6; border-radius: 14px; padding: 18px 22px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .terminal span::before { content: "$ "; color: var(--teal); }
+  .terminal button { background: #2c2a26; color: #e8e3d6; border: 0; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+  .models { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 860px; margin: 56px auto 0; }
+  .model { border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; background: rgba(255,255,255,.5); }
+  .model b { font-family: "Inter Tight"; font-weight: 500; font-size: 20px; }
+  .model .tag { font-size: 12px; background: var(--teal-soft); color: var(--teal); border-radius: 99px; padding: 3px 10px; margin-left: 8px; font-weight: 500; }
+  .model p { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; }
+
+  /* FAQ */
+  .faq { max-width: 820px; margin: 0 auto; }
+  details.q { border-top: 1px solid var(--line); padding: 22px 0; }
+  details.q:last-child { border-bottom: 1px solid var(--line); }
+  details.q summary { cursor: pointer; list-style: none; font-family: "Inter Tight"; font-size: 21px; letter-spacing: -0.02em; display: flex; justify-content: space-between; gap: 20px; }
+  details.q summary::-webkit-details-marker { display: none; }
+  details.q summary::after { content: "+"; font-family: Inter; font-weight: 300; font-size: 26px; line-height: 1; color: var(--muted); transition: transform .2s; }
+  details.q[open] summary::after { transform: rotate(45deg); }
+  details.q p { margin: 14px 0 0; color: var(--ink-2); max-width: 700px; }
+
+  /* CTA final */
+  .final { text-align: center; padding: 120px 0; }
+  .final h2 { max-width: 820px; margin: 0 auto 22px; }
+  .final .ctas { display: flex; gap: 22px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 34px; }
+  .mavra-box { margin: 80px auto 0; max-width: 900px; display: flex; gap: 32px; align-items: center; justify-content: space-between; text-align: left; border: 1px solid var(--line); border-radius: 24px; padding: 34px 38px; background: #fff; }
+  .mavra-box p { margin: 6px 0 0; color: var(--ink-2); }
+
+  footer { border-top: 1px solid var(--line); padding: 34px 0 44px; font-size: 14px; color: var(--muted); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center; }
+  footer nav { display: flex; gap: 22px; }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 960px) {
+    .menu { display: none; }
+    .feature, .feature:nth-of-type(even) { grid-template-columns: 1fr; gap: 28px; }
+    .feature:nth-of-type(even) .copy { order: 0; }
+    .cards, .steps, .models { grid-template-columns: 1fr 1fr; }
+    .mavra-box { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    nav.top .wrap { height: 62px; gap: 12px; }
+    .brand span { display: none; }
+    nav.top .btn { padding: 9px 14px; font-size: 14px; margin-left: auto; }
+    .hero { padding-top: 44px; }
+    .lead { font-size: 18px; }
+    section { padding: 72px 0; }
+    .cards, .steps, .models { grid-template-columns: 1fr; }
+    .chip { font-size: 12px; padding: 7px 12px; }
+    .c1 { top: 4%; left: 0; } .c2 { display: none; } .c3 { bottom: -4%; left: 4%; } .c4 { display: none; }
+    .stage .shot { transform: none; }
+    .terminal { font-size: 12px; flex-direction: column; align-items: flex-start; }
+    .mavra-box { padding: 26px; }
+  }
+</style>
+</head>
+<body>
+  <div class="ribbon">Grátis e open source · feito pela equipe da <a href="https://mavra.app">Mavra</a> →</div>
+
+  <nav class="top" id="top">
+    <div class="wrap">
+      <a class="brand" href="#"><img src="assets/mavra-logo-dark.png" alt="Mavra" width="124" height="23" /><span>Zap Copilot</span></a>
+      <div class="menu">
+        <a href="#recursos">Recursos</a>
+        <a href="#privacidade">Privacidade</a>
+        <a href="#instalar">Instalar</a>
+        <a href="#faq">Perguntas</a>
+        <a href="https://github.com/GuilhermeMReis/zap-copilot" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <a class="btn btn-ink" href="#instalar">Baixar grátis <span class="arrow"></span></a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="grid">
+        <div>
+          <div class="eyebrow">Extensão para o WhatsApp Web</div>
+          <h1>Venda mais no WhatsApp<br />com um <span class="serif">copiloto de IA</span><br />do seu lado</h1>
+        </div>
+        <p class="lead">O Zap Copilot lê a conversa aberta, sugere a próxima mensagem pelo seu script de vendas, agenda follow-ups e retoma sozinho o lead que parou de responder.</p>
+        <div class="ctas">
+          <a class="btn btn-teal" href="https://github.com/GuilhermeMReis/zap-copilot/releases/latest/download/zap-copilot.zip">Baixar para o Chrome <span class="arrow"></span></a>
+          <a class="link" href="https://github.com/GuilhermeMReis/zap-copilot" target="_blank" rel="noopener">Ver o código no GitHub</a>
+        </div>
+        <div class="fine"><span><b>Grátis</b> para sempre</span><span><b>Open source</b> (MIT)</span><span>Roda <b>no seu navegador</b></span><span>IA <b>gratuita</b> com Groq</span></div>
+      </div>
+      <div class="stage">
+        <span class="chip c1">Lead quente detectado</span>
+        <span class="chip c2">Resposta sugerida pelo script</span>
+        <span class="chip c3">Follow-up agendado</span>
+        <span class="chip c4">Lead retomado em 5 min</span>
+        <div class="shot"><img src="assets/shots/conversa.jpg" alt="Painel do Zap Copilot ao lado de uma conversa do WhatsApp Web, mostrando o raio-x da conversa e a próxima mensagem sugerida" width="2000" height="1194" /></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="strip">
+    <p>Funciona com a IA e o navegador que você já usa</p>
+    <ul>
+      <li>Groq <small>grátis</small></li>
+      <li>OpenAI</li>
+      <li>Chrome</li>
+      <li>Edge</li>
+      <li>Brave</li>
+      <li>Arc</li>
+    </ul>
+  </div>
+
+  <section id="recursos">
+    <div class="wrap">
+      <div class="head-center">
+        <div class="eyebrow">Do primeiro “oi” ao fechamento</div>
+        <h2>Tudo o que um bom vendedor faria, <span class="serif">sem esquecer ninguém</span></h2>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="num">01 · Conversa</div>
+          <h3>Saiba em segundos onde cada lead está</h3>
+          <p>Um clique em <b>Analisar</b> e a IA mostra a etapa do funil, a temperatura, as objeções e o próximo passo do seu script.</p>
+          <ul>
+            <li>Resposta pronta escrita no seu tom de voz</li>
+            <li>Você revisa, edita e envia, ou só coloca no chat</li>
+            <li>Nunca inventa preço, prazo ou link fora do script</li>
+          </ul>
+        </div>
+        <div class="shot"><img src="assets/shots/f-conversa.jpg" alt="Raio-x da conversa com etapa, temperatura, objeções e próximo passo" loading="lazy" /></div>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="num">02 · Agenda</div>
+          <h3>Follow-up na hora certa, com um clique</h3>
+          <p>A IA lê o histórico e propõe <b>quando</b> retomar e <b>o que</b> dizer. Se o cliente pediu “me chama segunda”, ela agenda para segunda. Você só aprova.</p>
+          <ul>
+            <li>Data, hora e mensagem editáveis antes de aprovar</li>
+            <li>Na hora marcada a mensagem sai sozinha</li>
+            <li>Histórico mostra o que foi enviado e o que foi cancelado</li>
+          </ul>
+        </div>
+        <div class="shot"><img src="assets/shots/f-agenda.jpg" alt="Sugestão de follow-up da IA com data, hora e mensagem para aprovar" loading="lazy" /></div>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="num">03 · Cadência</div>
+          <h3>Lead que sumiu volta para a conversa</h3>
+          <p>Monte a sua sequência de reativação, por exemplo <b>5 min → 1 h → 1 dia</b>. Cada passo pode ser um texto fixo seu ou uma mensagem que a IA escreve a partir do histórico.</p>
+          <ul>
+            <li>Para sozinha quando o lead responde</li>
+            <li>Recomeça na sua próxima mensagem sem resposta</li>
+            <li>Liga e desliga por conversa</li>
+          </ul>
+        </div>
+        <div class="shot"><img src="assets/shots/cadence.jpg" alt="Editor da cadência de inatividade com três passos" loading="lazy" /></div>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="num">04 · Piloto automático</div>
+          <h3>Atenda mesmo quando você está em outra conversa</h3>
+          <p>Ligue o <b>Responder sozinho</b> nas conversas que quiser. Chegou mensagem nova, a IA responde pelo seu script e volta para onde você estava.</p>
+          <ul>
+            <li>Contagem regressiva para você cancelar antes de sair</li>
+            <li>Nunca atropela você: espera o campo de mensagem vazio</li>
+            <li>Você vê e controla tudo pela aba Automação</li>
+          </ul>
+        </div>
+        <div class="shot"><img src="assets/shots/f-toast.jpg" alt="Aviso de envio automático com contagem regressiva e botões Cancelar e Enviar já" loading="lazy" /></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacidade" class="dark">
+    <div class="wrap">
+      <div class="head-center">
+        <div class="eyebrow">Privacidade de verdade</div>
+        <h2>Suas conversas ficam <span class="serif">com você</span></h2>
+        <p class="lead">Não existe servidor do Zap Copilot. Nada passa por nós.</p>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fd0c4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+          <h3>Roda na sua máquina</h3>
+          <p>Script, chave e agenda ficam salvos no seu navegador. Só o texto que você pede para analisar vai para o provedor de IA que você escolheu.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fd0c4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg></div>
+          <h3>Sua chave, seu custo</h3>
+          <p>Use a Groq no plano gratuito ou a OpenAI pagando centavos por conversa. Sem mensalidade e sem intermediário.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7fd0c4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></div>
+          <h3>Código aberto</h3>
+          <p>Licença MIT. Leia cada linha, adapte os prompts ao seu negócio e contribua com melhorias no GitHub.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="instalar">
+    <div class="wrap">
+      <div class="head-center">
+        <div class="eyebrow">Instalação</div>
+        <h2>Pronto em <span class="serif">dois minutos</span></h2>
+      </div>
+      <div class="steps">
+        <div class="step"><h3>Baixe</h3><p>Baixe o <b>.zip</b> e descompacte numa pasta que você não vá apagar.</p></div>
+        <div class="step"><h3>Carregue no Chrome</h3><p>Em <code>chrome://extensions</code>, ligue o <b>Modo do desenvolvedor</b> e clique em <b>Carregar sem compactação</b>.</p></div>
+        <div class="step"><h3>Cole sua chave</h3><p>Gere uma chave grátis na Groq, cole nas Configurações e escreva seu script de vendas.</p></div>
+        <div class="step"><h3>Venda</h3><p>Abra o WhatsApp Web, clique no botão <b>✦</b> e use o painel em qualquer conversa.</p></div>
+      </div>
+      <div class="install-cta">
+        <a class="btn btn-teal" href="https://github.com/GuilhermeMReis/zap-copilot/releases/latest/download/zap-copilot.zip">Baixar o Zap Copilot (.zip) <span class="arrow"></span></a>
+        <a class="link" href="https://github.com/GuilhermeMReis/zap-copilot#readme" target="_blank" rel="noopener">Guia completo no GitHub</a>
+      </div>
+      <div class="terminal"><span id="clone">git clone https://github.com/GuilhermeMReis/zap-copilot.git</span><button type="button" id="copy">Copiar</button></div>
+
+      <div class="models">
+        <div class="model"><b>Groq</b><span class="tag">plano gratuito</span><p>Modelos rápidos como <code>openai/gpt-oss-120b</code>. A extensão lista sozinha os modelos que a sua chave pode usar.</p></div>
+        <div class="model"><b>OpenAI</b><span class="tag">pago por uso</span><p>Modelos como <code>gpt-4o-mini</code>, com custo de centavos por conversa.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" style="padding-top:40px">
+    <div class="wrap">
+      <div class="head-center">
+        <div class="eyebrow">Perguntas</div>
+        <h2>Antes de instalar</h2>
+      </div>
+      <div class="faq">
+        <details class="q"><summary>É grátis mesmo?</summary><p>Sim. A extensão é gratuita e open source. O único custo possível é o da IA: com a Groq dá para usar no plano gratuito; com a OpenAI você paga centavos por conversa direto para ela.</p></details>
+        <details class="q"><summary>Meu número pode ser bloqueado?</summary><p>O WhatsApp não permite oficialmente automação em contas pessoais. Por isso o modo padrão é de sugestão: a IA escreve e você envia. O piloto automático e a cadência têm contagem regressiva e devem ser usados com moderação, em poucas conversas.</p></details>
+        <details class="q"><summary>Funciona no celular?</summary><p>Não. O Zap Copilot é uma extensão para o WhatsApp Web no computador. As mensagens que ele envia aparecem normalmente no seu celular.</p></details>
+        <details class="q"><summary>Preciso deixar o computador ligado?</summary><p>Sim, com o WhatsApp Web aberto em uma aba. Follow-ups e cadências agendados saem quando a aba está aberta; a aba pode ficar em segundo plano.</p></details>
+        <details class="q"><summary>Funciona com o WhatsApp Business?</summary><p>Sim, funciona com o WhatsApp e com o WhatsApp Business no navegador.</p></details>
+        <details class="q"><summary>E se eu precisar de equipe, CRM e API oficial?</summary><p>Aí o caminho é a <a href="https://mavra.app">Mavra</a>: inbox compartilhado, CRM visual e agentes de IA na API oficial do WhatsApp, para times que vendem em escala.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <div class="eyebrow">Comece hoje</div>
+      <h2>Nenhum lead esquecido. <span class="serif">Nenhuma resposta atrasada.</span></h2>
+      <p class="lead" style="margin:0 auto">Instale grátis e deixe a IA cuidar do follow-up enquanto você conversa com quem está pronto para comprar.</p>
+      <div class="ctas">
+        <a class="btn btn-teal" href="https://github.com/GuilhermeMReis/zap-copilot/releases/latest/download/zap-copilot.zip">Baixar para o Chrome <span class="arrow"></span></a>
+        <a class="btn btn-line" href="https://github.com/GuilhermeMReis/zap-copilot" target="_blank" rel="noopener">★ Dar uma estrela no GitHub</a>
+      </div>
+      <div class="mavra-box">
+        <div>
+          <h3>Vende com uma equipe inteira no WhatsApp?</h3>
+          <p>A Mavra junta inbox compartilhado, CRM visual e agentes de IA na API oficial.</p>
+        </div>
+        <a class="btn btn-ink" href="https://mavra.app">Conhecer a Mavra <span class="arrow"></span></a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Mavra · Zap Copilot é open source (MIT) e não tem relação com o WhatsApp ou a Meta.</span>
+      <nav>
+        <a href="https://github.com/GuilhermeMReis/zap-copilot" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/GuilhermeMReis/zap-copilot/issues" target="_blank" rel="noopener">Reportar problema</a>
+        <a href="https://mavra.app">mavra.app</a>
+      </nav>
+    </div>
+  </footer>
+
+<script>
+  const nav = document.getElementById("top");
+  addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 10), { passive: true });
+  document.getElementById("copy").onclick = async (e) => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("clone").textContent);
+      e.target.textContent = "Copiado!";
+      setTimeout(() => (e.target.textContent = "Copiar"), 1500);
+    } catch {}
+  };
+</script>
+</body>
+</html>

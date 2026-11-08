@@ -1,6 +1,8 @@
 # Zap Copilot
 
-**Extensão open source para o Chrome que coloca uma IA de vendas dentro do WhatsApp Web.**
+**Extensão open source para o Chrome que coloca uma IA de vendas dentro do WhatsApp Web.** · Site: [zap.mavra.app](https://zap.mavra.app) · [Baixar o .zip](https://github.com/GuilhermeMReis/zap-copilot/releases/latest/download/zap-copilot.zip)
+
+![Zap Copilot no WhatsApp Web](site/assets/shots/conversa.jpg)
 Você cola uma chave da **Groq** (tem plano gratuito) ou da **OpenAI** e a extensão passa a:
 
 - **Analisar a conversa aberta**: resumo, etapa do funil, temperatura do lead, intenção, objeções e em que passo do seu script a conversa está.
