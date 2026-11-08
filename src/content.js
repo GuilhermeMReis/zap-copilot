@@ -198,57 +198,91 @@
   const root = document.createElement("div");
   root.id = "zc-root";
   root.innerHTML = `
-    <button id="zc-toggle" title="Zap Copilot">✦</button>
+    <button id="zc-toggle" title="Zap Copilot"><span>✦</span><b id="zc-badge" class="zc-hidden"></b></button>
     <div id="zc-toast" class="zc-hidden"></div>
     <aside id="zc-panel" class="zc-hidden">
-      <header>
-        <strong>Zap Copilot</strong>
-        <span id="zc-chat">—</span>
-        <button id="zc-close" title="Fechar">×</button>
-      </header>
-      <section>
-        <button id="zc-analyze" class="zc-primary">Analisar conversa</button>
-        <div id="zc-analysis"></div>
-      </section>
-      <section>
-        <label>Instrução extra (opcional)</label>
-        <input id="zc-instruction" placeholder="ex.: oferecer desconto de 10% se fechar hoje" />
-        <button id="zc-suggest" class="zc-primary">Sugerir resposta</button>
-        <textarea id="zc-reply" rows="4" placeholder="A resposta sugerida aparece aqui. Você pode editar."></textarea>
-        <div class="zc-row">
-          <button id="zc-insert">Colocar no chat</button>
-          <button id="zc-send">Enviar</button>
+      <header class="zc-head">
+        <span class="zc-logo">✦</span>
+        <div class="zc-title">
+          <strong>Zap Copilot</strong>
+          <span id="zc-chat">Abra uma conversa</span>
         </div>
-      </section>
-      <section>
-        <button id="zc-fu-suggest">Agendar follow-up</button>
-        <div id="zc-fu-draft" class="zc-hidden">
-          <p class="zc-hint" id="zc-fu-reason"></p>
-          <label>Quando</label>
-          <input id="zc-fu-when" type="datetime-local" />
-          <label>Mensagem</label>
-          <textarea id="zc-fu-msg" rows="3"></textarea>
-          <div class="zc-row">
-            <button id="zc-fu-approve" class="zc-primary">Aprovar</button>
-            <button id="zc-fu-discard">Descartar</button>
+        <button id="zc-settings" class="zc-icon" title="Configurações">⚙</button>
+        <button id="zc-close" class="zc-icon" title="Fechar">✕</button>
+      </header>
+      <nav class="zc-tabs">
+        <button data-tab="conversa" class="zc-on">Conversa</button>
+        <button data-tab="auto">Automação</button>
+        <button data-tab="agenda">Agenda</button>
+      </nav>
+      <div class="zc-body">
+        <div class="zc-pane" data-pane="conversa">
+          <div class="zc-card">
+            <div class="zc-card-head">
+              <h3>Raio-x da conversa</h3>
+              <button id="zc-analyze" class="zc-btn zc-soft">Analisar</button>
+            </div>
+            <div id="zc-analysis"></div>
+          </div>
+          <div class="zc-card">
+            <div class="zc-card-head">
+              <h3>Próxima mensagem</h3>
+              <button id="zc-suggest" class="zc-btn zc-soft">✦ Sugerir</button>
+            </div>
+            <textarea id="zc-reply" rows="4" placeholder="Clique em Sugerir: a IA escreve seguindo o seu script. Você pode editar antes de enviar."></textarea>
+            <details class="zc-more">
+              <summary>Orientar a IA</summary>
+              <input id="zc-instruction" placeholder="ex.: oferecer 10% de desconto se fechar hoje" />
+            </details>
+            <div class="zc-actions">
+              <button id="zc-insert" class="zc-btn zc-ghost">Colocar no chat</button>
+              <button id="zc-send" class="zc-btn zc-primary">Enviar</button>
+            </div>
           </div>
         </div>
-      </section>
-      <section>
-        <label class="zc-switch"><input type="checkbox" id="zc-cadence" /> Cadência de inatividade nesta conversa</label>
-        <p class="zc-hint" id="zc-cadence-info"></p>
-      </section>
-      <section>
-        <label class="zc-switch"><input type="checkbox" id="zc-autopilot" /> Piloto automático nesta conversa</label>
-        <p class="zc-hint">Responde sozinho às novas mensagens desta conversa, mesmo com outra aberta: quando você fica parado, o Zap Copilot abre a conversa, responde após uma contagem regressiva (dá para cancelar) e volta para onde você estava.</p>
-        <ul id="zc-autolist"></ul>
-      </section>
-      <section>
-        <label>Follow-ups agendados</label>
-        <ul id="zc-followups"></ul>
-        <label>Histórico</label>
-        <ul id="zc-fu-history"></ul>
-      </section>
+
+        <div class="zc-pane" data-pane="auto" hidden>
+          <div class="zc-card zc-toggle-row">
+            <div>
+              <h3>Responder sozinho</h3>
+              <p>A IA responde às mensagens novas desta conversa, mesmo se ela estiver fechada. Você tem alguns segundos para cancelar.</p>
+            </div>
+            <label class="zc-switch"><input type="checkbox" id="zc-autopilot" /><span></span></label>
+          </div>
+          <div class="zc-card zc-toggle-row">
+            <div>
+              <h3>Follow-up se o lead sumir</h3>
+              <p id="zc-cadence-info"></p>
+              <button id="zc-edit-steps" class="zc-link">Editar passos</button>
+            </div>
+            <label class="zc-switch"><input type="checkbox" id="zc-cadence" /><span></span></label>
+          </div>
+          <div class="zc-card">
+            <h3>Automação ligada em</h3>
+            <ul id="zc-autolist" class="zc-list"></ul>
+          </div>
+        </div>
+
+        <div class="zc-pane" data-pane="agenda" hidden>
+          <button id="zc-fu-suggest" class="zc-btn zc-primary zc-block">✦ Agendar follow-up desta conversa</button>
+          <div id="zc-fu-draft" class="zc-card zc-draft zc-hidden">
+            <h3>Sugestão da IA</h3>
+            <p id="zc-fu-reason" class="zc-muted"></p>
+            <label>Quando</label>
+            <input id="zc-fu-when" type="datetime-local" />
+            <label>Mensagem</label>
+            <textarea id="zc-fu-msg" rows="3"></textarea>
+            <div class="zc-actions">
+              <button id="zc-fu-discard" class="zc-btn zc-ghost">Descartar</button>
+              <button id="zc-fu-approve" class="zc-btn zc-primary">Aprovar</button>
+            </div>
+          </div>
+          <h4 class="zc-section">Próximos</h4>
+          <ul id="zc-followups" class="zc-list"></ul>
+          <h4 class="zc-section">Já enviados</h4>
+          <ul id="zc-fu-history" class="zc-list"></ul>
+        </div>
+      </div>
       <footer id="zc-status"></footer>
     </aside>`;
   document.body.appendChild(root);
@@ -256,7 +290,7 @@
   const $ = (id) => root.querySelector(`#${id}`);
   const status = (msg, isError = false) => {
     $("zc-status").textContent = msg || "";
-    $("zc-status").className = isError ? "zc-error" : "";
+    $("zc-status").className = (isError ? "zc-error " : "") + (msg ? "zc-show" : "");
   };
 
   function toLocalInput(ts) {
@@ -308,18 +342,24 @@
   }
 
   function renderAnalysis(a) {
-    if (!a) return ($("zc-analysis").innerHTML = "");
-    const list = (arr) => (arr?.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "—");
+    if (!a)
+      return ($("zc-analysis").innerHTML =
+        '<p class="zc-empty">Mostra a etapa do funil, a temperatura do lead, as objeções e o próximo passo.</p>');
+    const chips = (arr) =>
+      arr?.length ? arr.map((x) => `<span class="zc-chip">${esc(x)}</span>`).join("") : '<span class="zc-muted">nenhuma</span>';
+    const temp = String(a.temperatura || "").toLowerCase();
     $("zc-analysis").innerHTML = `
       <div class="zc-tags">
         <span class="zc-tag">${esc(a.etapa)}</span>
-        <span class="zc-tag zc-${esc(a.temperatura)}">${esc(a.temperatura)}</span>
+        <span class="zc-tag zc-temp zc-${esc(temp)}">● ${esc(a.temperatura)}</span>
       </div>
-      <p>${esc(a.resumo)}</p>
-      <p><b>Intenção:</b> ${esc(a.intencao)}</p>
-      <p><b>Objeções:</b></p>${list(a.objecoes)}
-      <p><b>Script:</b> ${esc(a.passo_do_script)}</p>
-      <p><b>Próxima ação:</b> ${esc(a.proxima_acao)}</p>`;
+      <p class="zc-summary">${esc(a.resumo)}</p>
+      <dl class="zc-facts">
+        <dt>Intenção</dt><dd>${esc(a.intencao)}</dd>
+        <dt>Objeções</dt><dd>${chips(a.objecoes)}</dd>
+        <dt>No script</dt><dd>${esc(a.passo_do_script)}</dd>
+      </dl>
+      <div class="zc-next"><b>Próximo passo</b>${esc(a.proxima_acao)}</div>`;
   }
 
   function renderDraft(d) {
@@ -345,7 +385,7 @@
     const name = getChatName();
     if (name === currentChat) return;
     currentChat = name;
-    $("zc-chat").textContent = name || "—";
+    $("zc-chat").textContent = name || "Abra uma conversa";
     $("zc-autopilot").checked = !!name && autopilot.has(name);
     $("zc-cadence").checked = !!name && !!cadence[name]?.on;
     status("");
@@ -379,39 +419,71 @@
       .filter((f) => f.done)
       .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0))
       .slice(0, 5);
+    const when = (ts) => {
+      const diff = ts - Date.now();
+      const abs = new Date(ts).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      if (diff <= 0) return `<span class="zc-late-tag">na hora</span> ${abs}`;
+      return `em ${fmtDuration(diff)} · ${abs}`;
+    };
     $("zc-followups").innerHTML =
       followups
-        .map((f) => {
-          const late = f.dueAt < Date.now();
-          return `<li class="${late ? "zc-late" : ""}">
-            <b>${esc(f.chatName)}</b> · ${new Date(f.dueAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-            <small>${esc(f.message)}</small>
-            ${late ? "<small><i>Na hora: sai assim que você ficar 15s sem mexer no WhatsApp.</i></small>" : ""}
-            <span class="zc-row">
-              <button data-open="${f.id}">Abrir</button>
-              <button data-del="${f.id}">Cancelar</button>
-            </span>
-          </li>`;
-        })
-        .join("") || "<li><small>Nenhum follow-up agendado.</small></li>";
-    $("zc-fu-history").innerHTML = history
-      .map(
-        (f) => `<li><b>${esc(f.chatName)}</b> · ${esc(f.outcome || "concluído")} ${
-          f.doneAt ? new Date(f.doneAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : ""
-        }<small>${esc(f.message)}</small></li>`
-      )
-      .join("");
+        .map(
+          (f) => `<li class="zc-item">
+            <div class="zc-item-top"><b>${esc(f.chatName)}</b><span>${when(f.dueAt)}</span></div>
+            <p>${esc(f.message)}</p>
+            <div class="zc-item-actions">
+              <button class="zc-link" data-open="${f.id}">Abrir conversa</button>
+              <button class="zc-link zc-danger" data-del="${f.id}">Cancelar</button>
+            </div>
+          </li>`
+        )
+        .join("") ||
+      '<li class="zc-empty">Nada agendado. Abra uma conversa e clique em Agendar.</li>';
+    if (followups.some((f) => f.dueAt <= Date.now()))
+      $("zc-followups").insertAdjacentHTML(
+        "beforeend",
+        '<li class="zc-muted zc-note">Follow-ups na hora saem quando você fica 15s sem mexer no WhatsApp.</li>'
+      );
+    $("zc-fu-history").innerHTML =
+      history
+        .map(
+          (f) => `<li class="zc-item zc-done">
+            <div class="zc-item-top"><b>${esc(f.chatName)}</b><span class="zc-outcome zc-${f.outcome === "enviado" ? "ok" : "off"}">${esc(
+              f.outcome || "concluído"
+            )}</span></div>
+            <p>${esc(f.message)}</p>
+          </li>`
+        )
+        .join("") || '<li class="zc-empty">Nenhum ainda.</li>';
+    $("zc-badge").textContent = followups.length;
+    $("zc-badge").classList.toggle("zc-hidden", !followups.length);
   }
 
   // ---------- Ações ----------
+  function setPanel(open) {
+    $("zc-panel").classList.toggle("zc-hidden", !open);
+    document.body.classList.toggle("zc-open", open); // a conversa encolhe em vez de ficar coberta
+    try {
+      localStorage.setItem("zc-open", open ? "1" : "");
+    } catch {}
+  }
+
+  function setTab(tab) {
+    root.querySelectorAll(".zc-tabs button").forEach((b) => b.classList.toggle("zc-on", b.dataset.tab === tab));
+    root.querySelectorAll(".zc-pane").forEach((p) => (p.hidden = p.dataset.pane !== tab));
+  }
+  root.querySelector(".zc-tabs").onclick = (e) => e.target.dataset.tab && setTab(e.target.dataset.tab);
+  $("zc-settings").onclick = () => call("openOptions");
+  $("zc-edit-steps").onclick = () => call("openOptions");
+
   $("zc-toggle").onclick = () => {
-    $("zc-panel").classList.toggle("zc-hidden");
+    setPanel($("zc-panel").classList.contains("zc-hidden"));
     syncChat();
     refreshFollowups();
     renderAutolist();
     renderCadenceInfo();
   };
-  $("zc-close").onclick = () => $("zc-panel").classList.add("zc-hidden");
+  $("zc-close").onclick = () => setPanel(false);
 
   // O resultado da IA vai para a conversa em que foi pedido, mesmo se você trocar no meio.
   $("zc-analyze").onclick = (e) =>
@@ -516,6 +588,10 @@
     syncChat();
     renderAutolist();
     refreshFollowups();
+    renderAnalysis(chatState[currentChat]?.analysis);
+    try {
+      if (localStorage.getItem("zc-open")) setPanel(true);
+    } catch {}
   });
 
   // Mantém todas as abas do WhatsApp com o mesmo estado: sem isso, uma aba antiga
@@ -542,20 +618,36 @@
   function saveCadence() {
     chrome.storage.local.set({ cadence });
     renderCadenceInfo();
+    renderAutolist();
   }
 
   function renderAutolist() {
-    $("zc-autolist").innerHTML = [...autopilot]
-      .map((n) => `<li><span>${esc(n)}</span><button data-off="${esc(n)}" title="Desligar">×</button></li>`)
-      .join("");
+    const names = new Set([...autopilot, ...Object.keys(cadence).filter((n) => cadence[n]?.on)]);
+    $("zc-autolist").innerHTML =
+      [...names]
+        .map(
+          (n) => `<li class="zc-auto-item"><b>${esc(n)}</b><span>
+            ${autopilot.has(n) ? `<span class="zc-chip">Responde <button data-off-ap="${esc(n)}" title="Desligar">✕</button></span>` : ""}
+            ${cadence[n]?.on ? `<span class="zc-chip">Follow-up <button data-off-cad="${esc(n)}" title="Desligar">✕</button></span>` : ""}
+          </span></li>`
+        )
+        .join("") || '<li class="zc-empty">Nenhuma conversa com automação.</li>';
   }
 
   $("zc-autolist").onclick = (e) => {
-    const name = e.target.getAttribute("data-off");
-    if (!name) return;
-    autopilot.delete(name);
-    saveAutopilot();
-    if (currentChat === name) $("zc-autopilot").checked = false;
+    const ap = e.target.getAttribute("data-off-ap");
+    const cad = e.target.getAttribute("data-off-cad");
+    if (ap) {
+      autopilot.delete(ap);
+      saveAutopilot();
+    }
+    if (cad) {
+      delete cadence[cad];
+      saveCadence();
+    }
+    $("zc-autopilot").checked = !!currentChat && autopilot.has(currentChat);
+    $("zc-cadence").checked = !!currentChat && !!cadence[currentChat]?.on;
+    renderAutolist();
   };
 
   $("zc-autopilot").onchange = (e) => {
@@ -604,13 +696,13 @@
     const list = steps();
     const plan = list.map((s) => `${s.minutes} min`).join(" → ") || "nenhum passo configurado";
     const st = currentChat && cadence[currentChat];
-    let line = `Passos: ${plan} (configure nas Opções).`;
+    let line = `Manda ${list.length} follow-up(s) se ele não responder: ${plan}.`;
     if (st?.on) {
-      if (!st.anchorAt) line += " Aguardando você mandar uma mensagem sem resposta.";
-      else if (st.step >= list.length) line += " Cadência concluída; recomeça na sua próxima mensagem.";
+      if (!st.anchorAt) line += " Começa a contar na sua próxima mensagem.";
+      else if (st.step >= list.length) line += " Sequência concluída; recomeça na sua próxima mensagem.";
       else {
         const wait = st.anchorAt + list[st.step].minutes * 60000 - Date.now();
-        line += ` Próximo: passo ${st.step + 1}/${list.length} em ${fmtDuration(wait)}.`;
+        line += ` Próximo (${st.step + 1}/${list.length}) em ${fmtDuration(wait)}.`;
       }
     }
     el.textContent = line;

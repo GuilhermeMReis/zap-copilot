@@ -65,6 +65,8 @@ Clique no ícone da extensão → **Configurações** e preencha:
 
 > Depois de atualizar a extensão, dê F5 em todas as abas do WhatsApp Web.
 
+> **Quando as automações agem.** Se a conversa já está aberta na tela, o follow-up e a cadência saem na hora certa. Se precisam abrir outra conversa, esperam você ficar 15 segundos sem mexer no WhatsApp (para não trocar a tela enquanto você digita), e o painel avisa que estão esperando. Tudo depende do WhatsApp Web aberto em **uma** aba deste navegador; depois de atualizar a extensão, dê F5 nessa aba.
+
 > O piloto automático só funciona com o WhatsApp Web aberto em uma aba (pode estar em segundo plano) e só alcança conversas que aparecem na lista lateral — conversas com mensagem nova sobem para o topo, então isso cobre o caso normal.
 
 > A extensão lê só as mensagens **carregadas na tela** da conversa aberta (as últimas 40). Para dar mais contexto, role a conversa para cima antes de analisar.
