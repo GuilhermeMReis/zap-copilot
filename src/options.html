@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Zap Copilot — Configurações</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #f0f2f5; color: #111b21; margin: 0; }
+    main { max-width: 720px; margin: 32px auto; background: #fff; border-radius: 12px; padding: 28px 32px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    p.sub { margin: 0 0 24px; color: #54656f; }
+    label { display: block; font-weight: 600; margin: 18px 0 6px; font-size: 14px; }
+    small { color: #667781; font-weight: 400; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d7db; border-radius: 8px; font: inherit; }
+    textarea { min-height: 160px; }
+    .row { display: flex; gap: 12px; } .row > div { flex: 1; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; align-items: center; }
+    button { padding: 10px 16px; border: 0; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+    #save { background: #00a884; color: #fff; } #test { background: #e9edef; }
+    #msg { color: #54656f; } #msg.err { color: #b3261e; }
+    .note { margin-top: 28px; padding: 12px 14px; background: #fff8e1; border-radius: 8px; font-size: 13px; color: #5c4400; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Zap Copilot</h1>
+  <p class="sub">Tudo fica salvo neste navegador. As conversas só são enviadas ao provedor de IA que você escolher.</p>
+
+  <div class="row">
+    <div>
+      <label for="provider">Provedor</label>
+      <select id="provider"></select>
+    </div>
+    <div>
+      <label for="model">Modelo <small>(pode digitar outro)</small></label>
+      <input id="model" list="models" />
+      <datalist id="models"></datalist>
+    </div>
+  </div>
+
+  <label for="apiKey">Chave de API <small><a id="keyLink" target="_blank" rel="noopener">gerar chave</a></small></label>
+  <input id="apiKey" type="password" autocomplete="off" placeholder="gsk_... ou sk-..." />
+
+  <label for="businessName">Empresa / produto</label>
+  <input id="businessName" placeholder="ex.: Mentoria X — ticket R$ 997" />
+
+  <label for="salesScript">Script de vendas <small>(passos, ofertas, preços, respostas a objeções)</small></label>
+  <textarea id="salesScript"></textarea>
+
+  <label for="tone">Tom de voz</label>
+  <input id="tone" />
+
+  <label for="autoSendDelaySec">Espera do piloto automático antes de enviar <small>(segundos)</small></label>
+  <input id="autoSendDelaySec" type="number" min="3" max="600" />
+
+  <div class="actions">
+    <button id="save">Salvar</button>
+    <button id="test">Testar chave</button>
+    <span id="msg"></span>
+  </div>
+
+  <p class="note">O WhatsApp não permite oficialmente automação de contas pessoais. Prefira o modo de sugestão (você revisa e envia). Use o piloto automático com moderação para não ter o número restringido.</p>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>
