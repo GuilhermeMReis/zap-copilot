@@ -246,6 +246,8 @@
       <section>
         <label>Follow-ups agendados</label>
         <ul id="zc-followups"></ul>
+        <label>Histórico</label>
+        <ul id="zc-fu-history"></ul>
       </section>
       <footer id="zc-status"></footer>
     </aside>`;
@@ -368,17 +370,23 @@
   let followups = [];
   async function refreshFollowups() {
     try {
-      followups = (await call("listFollowups")).filter((f) => !f.done);
+      var all = await call("listFollowups");
+      followups = all.filter((f) => !f.done);
     } catch {
       return;
     }
+    const history = all
+      .filter((f) => f.done)
+      .sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0))
+      .slice(0, 5);
     $("zc-followups").innerHTML =
       followups
         .map((f) => {
-          const late = f.dueAt < Date.now() ? " zc-late" : "";
-          return `<li class="${late}">
+          const late = f.dueAt < Date.now();
+          return `<li class="${late ? "zc-late" : ""}">
             <b>${esc(f.chatName)}</b> · ${new Date(f.dueAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
             <small>${esc(f.message)}</small>
+            ${late ? "<small><i>Na hora: sai assim que você ficar 15s sem mexer no WhatsApp.</i></small>" : ""}
             <span class="zc-row">
               <button data-open="${f.id}">Abrir</button>
               <button data-del="${f.id}">Cancelar</button>
@@ -386,6 +394,13 @@
           </li>`;
         })
         .join("") || "<li><small>Nenhum follow-up agendado.</small></li>";
+    $("zc-fu-history").innerHTML = history
+      .map(
+        (f) => `<li><b>${esc(f.chatName)}</b> · ${esc(f.outcome || "concluído")} ${
+          f.doneAt ? new Date(f.doneAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : ""
+        }<small>${esc(f.message)}</small></li>`
+      )
+      .join("");
   }
 
   // ---------- Ações ----------
@@ -648,34 +663,42 @@
           <blockquote>${esc(text)}</blockquote>
           <div class="zc-row"><span>Enviando em <b>${left}</b>s</span>
           <button id="zc-cancel">Cancelar</button><button id="zc-now">Enviar já</button></div>`);
-      const finish = (ok) => {
+      const finish = (result) => {
         clearInterval(timer);
         toast("");
-        resolve(ok);
+        resolve(result);
       };
       draw();
       $("zc-toast").onclick = (e) => {
-        if (e.target.id === "zc-cancel") finish(false);
-        if (e.target.id === "zc-now") finish(true);
+        if (e.target.id === "zc-cancel") finish("cancel");
+        if (e.target.id === "zc-now") finish("send");
       };
       const timer = setInterval(() => {
         left -= 1;
-        if (getChatName() !== name) return finish(false);
-        if (left <= 0) return finish(true);
+        if (getChatName() !== name) return finish("abort");
+        if (left <= 0) return finish("send");
         draw();
       }, 1000);
     });
   }
 
+  // Resultado: "sent", "cancelled" (você cancelou) ou "aborted" (a conversa mudou ou o envio falhou; tenta de novo depois).
   async function sendWithCountdown(name, label, text) {
-    if (!text?.trim()) return false;
-    const ok = await countdown(name, label, text, Math.max(3, Number(settings.autoSendDelaySec ?? 20)));
-    if (!ok || getChatName() !== name) return false;
+    if (!text?.trim()) return "cancelled";
+    const r = await countdown(name, label, text, Math.max(3, Number(settings.autoSendDelaySec ?? 20)));
+    if (r === "cancel") return "cancelled";
+    if (r !== "send" || getChatName() !== name) return "aborted";
     insertText(text);
     await sleep(150);
     clickSend();
-    await sleep(1500);
-    return true;
+    // Confere que saiu: o campo esvazia quando o WhatsApp aceita o envio.
+    for (let i = 0; i < 12; i++) {
+      await sleep(250);
+      const box = document.querySelector(SEL.composer);
+      if (box && !box.innerText.trim()) return "sent";
+    }
+    status(`Não consegui enviar para ${name}: o botão de enviar não respondeu.`, true);
+    return "aborted";
   }
 
   // ---------- Executor: uma tarefa por vez ----------
@@ -684,7 +707,10 @@
     jobBusy = true;
     const returnTo = getChatName();
     try {
-      if (!(await openChat(name))) return false;
+      if (!(await openChat(name))) {
+        status(`Não achei "${name}" na lista de conversas; tento de novo em 1 minuto.`, true);
+        return false;
+      }
       await job();
       return true;
     } catch (e) {
@@ -706,15 +732,18 @@
     const last = pendingIncoming(name);
     if (!last) return;
     const reply = await call("reply", { conversation: getConversation() });
-    const sent = await sendWithCountdown(name, "Piloto automático", reply);
+    const r = await sendWithCountdown(name, "Piloto automático", reply);
+    if (r === "aborted") throw new Error("envio interrompido; tento de novo em instantes");
     handled[name] = last.id; // enviado ou cancelado: não insiste na mesma mensagem
     saveAutopilot();
-    if (sent) patchState(name, { lastAutoReply: reply });
+    if (r === "sent") patchState(name, { lastAutoReply: reply });
   };
 
   const followupJob = (f) => async () => {
-    await sendWithCountdown(f.chatName, "Follow-up agendado", f.message);
-    await call("completeFollowup", { id: f.id }); // enviado ou cancelado: sai da fila
+    const r = await sendWithCountdown(f.chatName, "Follow-up agendado", f.message);
+    // Interrompido (conversa mudou, envio falhou): continua na fila e tenta de novo.
+    if (r === "aborted") throw new Error("envio interrompido; tento de novo em 1 minuto");
+    await call("completeFollowup", { id: f.id, outcome: r === "sent" ? "enviado" : "cancelado por você" });
     refreshFollowups();
   };
 
@@ -725,7 +754,9 @@
     const index = st.step;
     const text = await cadenceText(name, index);
     const before = getMessages().at(-1)?.id;
-    const sent = await sendWithCountdown(name, `Cadência ${index + 1}/${steps().length}`, text);
+    const r = await sendWithCountdown(name, `Cadência ${index + 1}/${steps().length}`, text);
+    if (r === "aborted") throw new Error("envio interrompido; tento de novo em 1 minuto");
+    const sent = r === "sent";
     let last = getMessages().at(-1);
     // Espera a mensagem enviada aparecer para não confundi-la com uma mensagem nova sua.
     for (let i = 0; sent && i < 20 && (!last?.fromMe || last.id === before); i++) {
@@ -737,7 +768,7 @@
   };
 
   const failed = new Map(); // evita repetir em loop uma conversa que não está na lista
-  const canTry = (key) => !failed.has(key) || Date.now() - failed.get(key) > 5 * 60000;
+  const canTry = (key) => !failed.has(key) || Date.now() - failed.get(key) > 60000;
 
   async function tick() {
     // Extensão recarregada: este script ficou órfão nesta aba e não deve mais agir.
@@ -784,7 +815,11 @@
     }
   }
 
-  setInterval(() => tick().catch((e) => console.warn("[Zap Copilot]", e)), 3000);
+  const safeTick = () => tick().catch((e) => console.warn("[Zap Copilot]", e));
+  setInterval(safeTick, 3000);
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.type === "zc-tick") refreshFollowups().then(safeTick);
+  });
   setInterval(refreshFollowups, 30000);
 
   // ---------- Observa trocas de conversa ----------

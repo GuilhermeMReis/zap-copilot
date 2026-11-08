@@ -43,3 +43,7 @@
 #zc-autolist button { padding: 0 6px !important; background: none !important; color: #8696a0 !important; font-size: 14px !important; }
 #zc-panel .zc-hidden { display: none !important; }
 #zc-fu-draft { display: flex; flex-direction: column; gap: 8px; background: var(--zc-card); border-radius: 8px; padding: 10px; }
+#zc-fu-history { list-style: none; padding: 0 !important; display: flex; flex-direction: column; gap: 4px; opacity: .8; }
+#zc-fu-history:empty::after { content: "Nada ainda."; color: var(--zc-muted); font-size: 12px; }
+#zc-fu-history li { font-size: 12px; display: flex; flex-direction: column; }
+#zc-fu-history small { color: var(--zc-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

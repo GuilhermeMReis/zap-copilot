@@ -39,6 +39,7 @@ export function analyzePrompt(settings, conversation) {
 }
 
 const NAME_RULES =
+  "Nunca invente links, URLs, telefones ou e-mails: use só os que estiverem no script ou na conversa. " +
   "Nunca invente nomes: use o nome do vendedor só se ele estiver informado (senão não se apresente pelo nome) " +
   "e só chame o cliente pelo nome se o nome do contato parecer um nome de pessoa, nunca um número de telefone. ";
 
@@ -88,6 +89,7 @@ export function replyPrompt(settings, conversation, instruction = "") {
         `Tom: ${settings.tone}. ` +
         "Regras: português do Brasil, sem markdown, sem aspas, no máximo 3 frases curtas, " +
         "nunca invente preço, prazo ou condição que não esteja no script. " +
+        "Nunca invente links, URLs, telefones ou e-mails: use só os que estiverem no script ou na conversa. " +
         "Nunca invente nomes: use o nome do vendedor só se ele estiver informado (senão não se apresente pelo nome) " +
         "e só chame o cliente pelo nome se o nome do contato parecer um nome de pessoa, nunca um número de telefone. " +
         "Se a conversa já começou, não se reapresente. " +

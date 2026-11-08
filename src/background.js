@@ -32,6 +32,11 @@ const handlers = {
     return safe;
   },
 
+  async openOptions() {
+    chrome.runtime.openOptionsPage();
+    return true;
+  },
+
   async testKey() {
     const settings = await getSettings();
     return chat(settings, [{ role: "user", content: "Responda apenas: ok" }], { temperature: 0 });
@@ -62,10 +67,10 @@ const handlers = {
     return item;
   },
 
-  async completeFollowup({ id }) {
+  async completeFollowup({ id, outcome }) {
     const list = await getFollowups();
     const item = list.find((f) => f.id === id);
-    if (item) item.done = true;
+    if (item) Object.assign(item, { done: true, outcome: outcome || "concluído", doneAt: Date.now() });
     await saveFollowups(list);
     chrome.alarms.clear(`fu:${id}`);
     return true;
@@ -110,6 +115,16 @@ chrome.notifications.onClicked.addListener(async () => {
     await chrome.tabs.create({ url: "https://web.whatsapp.com/" });
   }
 });
+
+// O Chrome desacelera abas em segundo plano: a cada 30s o background "acorda"
+// a aba do WhatsApp para checar piloto, follow-ups e cadência.
+chrome.alarms.create("zc-heartbeat", { periodInMinutes: 0.5 });
+async function wakeWhatsApp() {
+  for (const tab of await chrome.tabs.query({ url: "https://web.whatsapp.com/*" })) {
+    chrome.tabs.sendMessage(tab.id, { type: "zc-tick" }).catch(() => {});
+  }
+}
+chrome.alarms.onAlarm.addListener((a) => (a.name === "zc-heartbeat" || a.name.startsWith("fu:")) && wakeWhatsApp());
 
 // Alarmes não sobrevivem a reinstalação: recria os pendentes.
 async function restoreAlarms() {
