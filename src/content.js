@@ -11,8 +11,9 @@
     header: "#main header",
     messageRow: "#main [data-id]",
     prePlain: ".copyable-text[data-pre-plain-text]",
-    text: "span.selectable-text",
-    composer: '#main footer div[contenteditable="true"]',
+    text: 'span.selectable-text, [data-testid="selectable-text"]',
+    composer:
+      '#main footer div[contenteditable="true"], #main [data-testid="conversation-compose-box-input"], #main [data-testid="compose-box"] [contenteditable="true"]',
     sendButton:
       '#main footer button[aria-label="Send"], #main footer button[aria-label="Enviar"], #main footer span[data-icon="send"], #main footer span[data-icon="wds-ic-send-filled"]',
   };
@@ -20,30 +21,108 @@
   function getChatName() {
     const header = document.querySelector(SEL.header);
     if (!header) return null;
-    const span = header.querySelector('span[dir="auto"]');
+    const span =
+      header.querySelector('[data-testid="conversation-info-header-chat-title"]') ||
+      header.querySelector('span[dir="auto"]');
     return span?.textContent?.trim() || null;
   }
 
+  // Encontra os "balões" de mensagem. O WhatsApp já usou várias estruturas,
+  // então tentamos da mais específica para a mais genérica.
+  function findBubbles() {
+    const main = document.querySelector(SEL.main);
+    if (!main) return [];
+    const strategies = [
+      () => main.querySelectorAll('[data-testid^="conv-msg-"]'), // layout 2026
+      () => main.querySelectorAll(".message-in, .message-out"),
+      () => main.querySelectorAll('[role="row"]'),
+      () => main.querySelectorAll('[data-id^="true_"], [data-id^="false_"]'),
+      () => main.querySelectorAll("[data-pre-plain-text]"),
+    ];
+    for (const s of strategies) {
+      const nodes = [...s()];
+      if (nodes.length) return nodes;
+    }
+    return [];
+  }
+
+  function bubbleDirection(el) {
+    if (el.matches(".message-out") || el.querySelector(".message-out") || el.closest(".message-out")) return true;
+    if (el.matches(".message-in") || el.querySelector(".message-in") || el.closest(".message-in")) return false;
+    const id = el.getAttribute("data-id") || el.querySelector("[data-id]")?.getAttribute("data-id") || el.closest("[data-id]")?.getAttribute("data-id") || "";
+    if (id.startsWith("true_")) return true;
+    if (id.startsWith("false_")) return false;
+    if (el.querySelector('[data-icon="tail-out"], [data-testid="tail-out"]')) return true;
+    if (el.querySelector('[data-icon="tail-in"], [data-testid="tail-in"]')) return false;
+    // Status de entrega e o rótulo de autor ("You:") só existem nas mensagens enviadas.
+    const labels = [...el.querySelectorAll("[aria-label]")].map((a) => a.getAttribute("aria-label").trim());
+    if (labels.some((l) => /^(You|Você|Tu):?$/i.test(l) || /^(Sent|Delivered|Read|Pending|Enviada|Entregue|Lida|Pendente)$/i.test(l)))
+      return true;
+    // Último recurso: balões enviados ficam alinhados à direita.
+    const bubble = el.querySelector('[data-testid="msg-container"]') || el;
+    const box = bubble.getBoundingClientRect();
+    if (!box.width) return false;
+    const mainBox = document.querySelector(SEL.main).getBoundingClientRect();
+    return box.left + box.width / 2 > mainBox.left + mainBox.width / 2;
+  }
+
+  function bubbleText(el) {
+    // Ignora o trecho citado (resposta a outra mensagem), que fica num bloco à parte.
+    const own = [...el.querySelectorAll(SEL.text)].filter(
+      (s) =>
+        !s.parentElement.closest(SEL.text) && // evita contar spans aninhados duas vezes
+        !s.closest('[data-testid="quoted-message"], [aria-label*="Quoted"], [aria-label*="citada"], .quoted-mention')
+    );
+    let text = own.map((s) => s.innerText).join(" ").trim();
+    if (!text) {
+      const copy = el.querySelector(".copyable-text:not([data-pre-plain-text])") || el.querySelector(".copyable-text");
+      text = copy?.innerText?.trim() || "";
+    }
+    return text;
+  }
+
   function getMessages(limit = 40) {
-    const seen = new Set();
     const out = [];
-    for (const row of document.querySelectorAll(SEL.messageRow)) {
-      const id = row.getAttribute("data-id") || "";
-      if (!/^(true|false)_/.test(id) || seen.has(id)) continue;
+    const seen = new Set();
+    for (const el of findBubbles()) {
+      const pre =
+        el.getAttribute("data-pre-plain-text") ||
+        el.querySelector("[data-pre-plain-text]")?.getAttribute("data-pre-plain-text") ||
+        "";
+      const isBubble =
+        pre ||
+        el.matches(".message-in, .message-out") ||
+        el.querySelector('.message-in, .message-out, [data-testid="msg-container"]');
+      if (!isBubble) continue; // separadores de data, avisos de criptografia etc.
+      const id =
+        el.getAttribute("data-id") ||
+        el.querySelector("[data-id]")?.getAttribute("data-id") ||
+        el.closest("[data-id]")?.getAttribute("data-id") ||
+        `${pre}|${out.length}`;
+      if (seen.has(id)) continue;
       seen.add(id);
-      const pre = row.querySelector(SEL.prePlain)?.getAttribute("data-pre-plain-text") || "";
       const time = (pre.match(/^\[([^\]]+)\]/) || [])[1] || "";
-      const text = [...row.querySelectorAll(SEL.text)].map((s) => s.innerText).join(" ").trim();
-      out.push({ id, fromMe: id.startsWith("true_"), time, text: text || "[mídia/áudio/figurinha]" });
+      const text = bubbleText(el);
+      out.push({ id, fromMe: bubbleDirection(el), time, text: text || "[mídia/áudio/figurinha]" });
     }
     return out.slice(-limit);
+  }
+
+  // Resumo da estrutura (sem conteúdo) para quem for abrir uma issue.
+  function domReport() {
+    const main = document.querySelector(SEL.main);
+    const q = (s) => (main ? main.querySelectorAll(s).length : 0);
+    return `#main=${!!main} in/out=${q(".message-in, .message-out")} row=${q('[role="row"]')} data-id=${q("[data-id]")} pre-plain=${q("[data-pre-plain-text]")} selectable=${q(SEL.text)}`;
   }
 
   function getConversation() {
     const chatName = getChatName();
     if (!chatName) throw new Error("Abra uma conversa no WhatsApp Web primeiro.");
     const messages = getMessages();
-    if (!messages.length) throw new Error("Não encontrei mensagens nesta conversa.");
+    if (!messages.length) {
+      console.warn("[Zap Copilot] nenhuma mensagem lida:", domReport());
+      throw new Error(`Não encontrei mensagens nesta conversa. (${domReport()})`);
+    }
     return { chatName, messages };
   }
 
