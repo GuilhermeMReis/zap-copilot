@@ -873,10 +873,37 @@
     // 1) Conversa aberta com mensagem nova do cliente e piloto ligado.
     if (open && autopilot.has(open) && pendingIncoming(open)) return runJob(open, autopilotJob(open));
 
-    // Daqui para baixo só age com você parado e sem rascunho no campo de mensagem.
     const composer = document.querySelector(SEL.composer);
     const drafting = composer && composer.innerText.trim().length > 0;
-    if (Date.now() - lastUserActivity < IDLE_MS || drafting) return;
+
+    // 2) Follow-up ou cadência da conversa que JÁ está aberta: não precisa trocar de tela,
+    //    então sai na hora (só espera você não estar com rascunho no campo).
+    if (open && !drafting) {
+      const fOpen = followups.find((f) => f.chatName === open && f.dueAt <= Date.now() && canTry(`fu:${f.id}`));
+      if (fOpen) {
+        if (!(await runJob(open, followupJob(fOpen)))) failed.set(`fu:${fOpen.id}`, Date.now());
+        return;
+      }
+      if (cadence[open]?.on && cadenceDue(open) && canTry(`cad:${open}`)) {
+        if (!(await runJob(open, cadenceJob(open)))) failed.set(`cad:${open}`, Date.now());
+        return;
+      }
+    }
+
+    // Daqui para baixo precisa abrir outra conversa: só com você parado e sem rascunho.
+    if (Date.now() - lastUserActivity < IDLE_MS || drafting) {
+      const waiting =
+        followups.find((f) => f.dueAt <= Date.now())?.chatName ||
+        Object.keys(cadence).find((n) => cadence[n]?.on && cadenceDue(n));
+      if (waiting && !$("zc-status").classList.contains("zc-error"))
+        status(
+          drafting
+            ? `Follow-up de "${waiting}" pronto: sai quando o campo de mensagem estiver vazio.`
+            : `Follow-up de "${waiting}" pronto: sai quando você ficar 15s sem mexer no WhatsApp.`
+        );
+      return;
+    }
+    if (/^Follow-up de ".*" pronto/.test($("zc-status").textContent)) status("");
 
     const chats = listChats();
     const unread = new Set(chats.filter((c) => c.unread).map((c) => c.name));
