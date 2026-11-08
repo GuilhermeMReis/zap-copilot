@@ -41,3 +41,5 @@
 #zc-autolist:empty { display: none; }
 #zc-autolist li { display: flex; align-items: center; gap: 4px; background: #103529; border: 1px solid #00a884; border-radius: 99px; padding: 2px 4px 2px 10px; font-size: 12px; }
 #zc-autolist button { padding: 0 6px !important; background: none !important; color: #8696a0 !important; font-size: 14px !important; }
+#zc-panel .zc-hidden { display: none !important; }
+#zc-fu-draft { display: flex; flex-direction: column; gap: 8px; background: var(--zc-card); border-radius: 8px; padding: 10px; }

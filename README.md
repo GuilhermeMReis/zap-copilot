@@ -5,7 +5,8 @@ Você cola uma chave da **Groq** (tem plano gratuito) ou da **OpenAI** e a exten
 
 - **Analisar a conversa aberta**: resumo, etapa do funil, temperatura do lead, intenção, objeções e em que passo do seu script a conversa está.
 - **Sugerir a próxima mensagem** seguindo o seu script de vendas e o seu tom de voz. Você revisa, edita e envia.
-- **Agendar follow-ups** com lembrete por notificação do Chrome. A análise já sugere quando retomar e o texto da mensagem.
+- **Agendar follow-ups com IA**: um clique e a IA propõe a data/hora e a mensagem com base no histórico (respeita pedidos como "me chama segunda"). Você aprova ou edita antes. Na hora, a mensagem é enviada sozinha, com contagem regressiva para cancelar.
+- **Cadência de inatividade**: configure nas Opções uma sequência como 5 → 10 → 15 minutos. Se o lead não responder à sua última mensagem, o 1º follow-up sai em 5 min; o 2º, 10 min depois do 1º; o 3º, 15 min depois do 2º. Cada passo pode ter texto fixo (com `{nome}`) ou ser escrito pela IA a partir do histórico. Se o lead responder, a cadência para. Liga-se por conversa no painel.
 - **Piloto automático (opcional, por conversa)**: responde sozinho às novas mensagens das conversas marcadas, **mesmo que estejam fechadas**. Quando você fica 15 segundos parado, o Zap Copilot abre a conversa com mensagem nova, mostra a resposta com uma contagem regressiva (Cancelar / Enviar já) e volta para a conversa em que você estava.
 - **Contexto por conversa**: análise, resposta sugerida, instrução extra e rascunho de follow-up ficam guardados por conversa. Ao trocar de conversa, o painel mostra o que é daquela conversa.
 
@@ -59,7 +60,10 @@ Clique no ícone da extensão → **Configurações** e preencha:
 1. Abra [web.whatsapp.com](https://web.whatsapp.com) e entre em uma conversa.
 2. Clique no botão verde ✦ no canto inferior direito para abrir o painel.
 3. **Analisar conversa** → **Sugerir resposta** → **Colocar no chat** (você confere e aperta Enter) ou **Enviar**.
-4. Em **Agendar follow-up**, escolha a data (a análise já preenche uma sugestão) e clique em **Agendar**. Na hora você recebe uma notificação; o lembrete aparece na lista do painel com o botão **Usar texto**.
+4. Clique em **Agendar follow-up**: a IA sugere quando e o quê. Ajuste se quiser e clique em **Aprovar**.
+5. Para a cadência, ligue **Cadência de inatividade nesta conversa** no painel (os passos ficam nas Opções).
+
+> Depois de atualizar a extensão, dê F5 em todas as abas do WhatsApp Web.
 
 > O piloto automático só funciona com o WhatsApp Web aberto em uma aba (pode estar em segundo plano) e só alcança conversas que aparecem na lista lateral — conversas com mensagem nova sobem para o topo, então isso cobre o caso normal.
 

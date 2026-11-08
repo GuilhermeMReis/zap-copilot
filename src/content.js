@@ -187,6 +187,13 @@
     return false;
   }
 
+  function fmtDuration(ms) {
+    const m = Math.max(0, Math.round(ms / 60000));
+    if (m < 60) return `${m} min`;
+    if (m < 60 * 24) return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`;
+    return `${Math.round(m / 1440)} dia(s)`;
+  }
+
   // ---------- Painel ----------
   const root = document.createElement("div");
   root.id = "zc-root";
@@ -214,12 +221,22 @@
         </div>
       </section>
       <section>
-        <label>Agendar follow-up</label>
-        <div class="zc-row">
-          <input id="zc-when" type="datetime-local" />
+        <button id="zc-fu-suggest">Agendar follow-up</button>
+        <div id="zc-fu-draft" class="zc-hidden">
+          <p class="zc-hint" id="zc-fu-reason"></p>
+          <label>Quando</label>
+          <input id="zc-fu-when" type="datetime-local" />
+          <label>Mensagem</label>
+          <textarea id="zc-fu-msg" rows="3"></textarea>
+          <div class="zc-row">
+            <button id="zc-fu-approve" class="zc-primary">Aprovar</button>
+            <button id="zc-fu-discard">Descartar</button>
+          </div>
         </div>
-        <input id="zc-note" placeholder="Nota do lembrete" />
-        <button id="zc-schedule">Agendar</button>
+      </section>
+      <section>
+        <label class="zc-switch"><input type="checkbox" id="zc-cadence" /> Cadência de inatividade nesta conversa</label>
+        <p class="zc-hint" id="zc-cadence-info"></p>
       </section>
       <section>
         <label class="zc-switch"><input type="checkbox" id="zc-autopilot" /> Piloto automático nesta conversa</label>
@@ -227,7 +244,7 @@
         <ul id="zc-autolist"></ul>
       </section>
       <section>
-        <label>Follow-ups pendentes</label>
+        <label>Follow-ups agendados</label>
         <ul id="zc-followups"></ul>
       </section>
       <footer id="zc-status"></footer>
@@ -245,16 +262,28 @@
     return d.toISOString().slice(0, 16);
   }
 
+  // ---------- Configurações (sem a chave de API) ----------
+  let settings = {};
+  async function loadSettings() {
+    try {
+      settings = await call("getSettings");
+    } catch {}
+  }
+  chrome.storage.onChanged.addListener((ch) => ch.settings && loadSettings().then(renderCadenceInfo));
+
   // ---------- Estado por conversa ----------
   // Cada conversa guarda a sua análise, resposta, instrução e rascunho de follow-up.
   let chatState = {};
   let currentChat = null;
-  const FORM = { instruction: "zc-instruction", reply: "zc-reply", when: "zc-when", note: "zc-note" };
+  const FORM = { instruction: "zc-instruction", reply: "zc-reply" };
 
   let persistTimer = null;
   function persistState() {
     clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => chrome.storage.local.set({ chatState }), 500);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      chrome.storage.local.set({ chatState });
+    }, 500);
   }
 
   function patchState(name, patch) {
@@ -265,10 +294,15 @@
 
   function saveForm() {
     if (!currentChat) return;
-    patchState(
-      currentChat,
-      Object.fromEntries(Object.entries(FORM).map(([k, id]) => [k, $(id).value]))
-    );
+    patchState(currentChat, Object.fromEntries(Object.entries(FORM).map(([k, id]) => [k, $(id).value])));
+  }
+
+  function saveDraft() {
+    if (!currentChat || $("zc-fu-draft").classList.contains("zc-hidden")) return;
+    const s = chatState[currentChat]?.fuDraft || {};
+    patchState(currentChat, {
+      fuDraft: { ...s, dueAt: new Date($("zc-fu-when").value).getTime() || s.dueAt, message: $("zc-fu-msg").value },
+    });
   }
 
   function renderAnalysis(a) {
@@ -286,13 +320,24 @@
       <p><b>Próxima ação:</b> ${esc(a.proxima_acao)}</p>`;
   }
 
+  function renderDraft(d) {
+    $("zc-fu-draft").classList.toggle("zc-hidden", !d);
+    if (!d) return;
+    $("zc-fu-reason").textContent = d.reason ? `Sugestão da IA: ${d.reason}` : "";
+    $("zc-fu-when").value = d.dueAt ? toLocalInput(d.dueAt) : "";
+    $("zc-fu-msg").value = d.message || "";
+  }
+
   function restoreForm(name) {
     const s = (name && chatState[name]) || {};
     for (const [k, id] of Object.entries(FORM)) $(id).value = s[k] || "";
     renderAnalysis(s.analysis);
+    renderDraft(s.fuDraft);
   }
 
   for (const id of Object.values(FORM)) $(id).addEventListener("input", saveForm);
+  $("zc-fu-when").addEventListener("input", saveDraft);
+  $("zc-fu-msg").addEventListener("input", saveDraft);
 
   function syncChat() {
     const name = getChatName();
@@ -300,11 +345,12 @@
     currentChat = name;
     $("zc-chat").textContent = name || "—";
     $("zc-autopilot").checked = !!name && autopilot.has(name);
+    $("zc-cadence").checked = !!name && !!cadence[name]?.on;
     status("");
     restoreForm(name);
+    renderCadenceInfo();
   }
 
-  // Botões de IA: o resultado vai para a conversa em que foi pedido, mesmo se você trocar no meio.
   async function busy(button, fn) {
     button.disabled = true;
     status("Pensando…");
@@ -318,47 +364,47 @@
     }
   }
 
-  // ---------- Follow-ups ----------
+  // ---------- Follow-ups agendados ----------
+  let followups = [];
   async function refreshFollowups() {
-    const items = (await call("listFollowups")).filter((f) => !f.done);
+    try {
+      followups = (await call("listFollowups")).filter((f) => !f.done);
+    } catch {
+      return;
+    }
     $("zc-followups").innerHTML =
-      items
+      followups
         .map((f) => {
           const late = f.dueAt < Date.now() ? " zc-late" : "";
           return `<li class="${late}">
-            <b>${esc(f.chatName)}</b> · ${new Date(f.dueAt).toLocaleString("pt-BR")}
-            <small>${esc(f.note)}</small>
+            <b>${esc(f.chatName)}</b> · ${new Date(f.dueAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+            <small>${esc(f.message)}</small>
             <span class="zc-row">
               <button data-open="${f.id}">Abrir</button>
-              <button data-use="${f.id}">Usar texto</button>
-              <button data-done="${f.id}">Feito</button>
+              <button data-del="${f.id}">Cancelar</button>
             </span>
           </li>`;
         })
-        .join("") || "<li><small>Nenhum follow-up pendente.</small></li>";
-    $("zc-followups").__items = items;
+        .join("") || "<li><small>Nenhum follow-up agendado.</small></li>";
   }
 
   // ---------- Ações ----------
   $("zc-toggle").onclick = () => {
     $("zc-panel").classList.toggle("zc-hidden");
     syncChat();
-    refreshFollowups().catch(() => {});
+    refreshFollowups();
     renderAutolist();
+    renderCadenceInfo();
   };
   $("zc-close").onclick = () => $("zc-panel").classList.add("zc-hidden");
 
+  // O resultado da IA vai para a conversa em que foi pedido, mesmo se você trocar no meio.
   $("zc-analyze").onclick = (e) =>
     busy(e.target, async () => {
       const conversation = getConversation();
       const name = conversation.chatName;
       const a = await call("analyze", { conversation });
-      const patch = { analysis: a };
-      if (a.followup_em_horas > 0) {
-        patch.when = toLocalInput(Date.now() + a.followup_em_horas * 3600000);
-        patch.note = a.mensagem_followup || a.proxima_acao || "";
-      }
-      patchState(name, patch);
+      patchState(name, { analysis: a });
       if (currentChat === name) restoreForm(name);
     });
 
@@ -391,66 +437,96 @@
     }
   };
 
-  $("zc-schedule").onclick = (e) =>
+  // Agendar: a IA sugere data/hora e mensagem; você só aprova (ou edita antes).
+  $("zc-fu-suggest").onclick = (e) =>
+    busy(e.target, async () => {
+      const conversation = getConversation();
+      const name = conversation.chatName;
+      const draft = await call("suggestFollowup", { conversation });
+      patchState(name, { fuDraft: draft });
+      if (currentChat === name) renderDraft(draft);
+    });
+
+  $("zc-fu-discard").onclick = () => {
+    patchState(currentChat, { fuDraft: null });
+    renderDraft(null);
+  };
+
+  $("zc-fu-approve").onclick = (e) =>
     busy(e.target, async () => {
       const chatName = getChatName();
       if (!chatName) throw new Error("Abra uma conversa primeiro.");
-      const dueAt = new Date($("zc-when").value).getTime();
+      const dueAt = new Date($("zc-fu-when").value).getTime();
+      const message = $("zc-fu-msg").value.trim();
       if (!dueAt || dueAt < Date.now()) throw new Error("Escolha uma data no futuro.");
-      await call("addFollowup", { chatName, dueAt, note: $("zc-note").value, message: $("zc-note").value });
-      $("zc-when").value = "";
-      $("zc-note").value = "";
-      saveForm();
+      if (!message) throw new Error("Escreva a mensagem do follow-up.");
+      await call("addFollowup", { chatName, dueAt, note: message, message });
+      patchState(chatName, { fuDraft: null });
+      renderDraft(null);
       await refreshFollowups();
-      status("Follow-up agendado. Você recebe uma notificação na hora.");
+      status(`Follow-up agendado para ${new Date(dueAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Ele é enviado sozinho na hora.`);
     });
 
   $("zc-followups").onclick = async (e) => {
-    const items = $("zc-followups").__items || [];
-    const item = (attr) => items.find((f) => f.id === e.target.getAttribute(attr));
-    if (e.target.hasAttribute("data-open")) {
-      const f = item("data-open");
-      if (!(await openChat(f.chatName))) status(`Não achei "${f.chatName}" na lista. Procure pela busca do WhatsApp.`, true);
-    }
-    if (e.target.hasAttribute("data-use")) {
-      const f = item("data-use");
-      if (getChatName() !== f.chatName && !(await openChat(f.chatName)))
-        return status(`Abra a conversa "${f.chatName}" para usar o texto.`, true);
-      syncChat();
-      $("zc-reply").value = f.message || "";
-      saveForm();
-    }
-    if (e.target.hasAttribute("data-done")) {
-      await call("completeFollowup", { id: e.target.getAttribute("data-done") });
+    const id = e.target.getAttribute("data-open") || e.target.getAttribute("data-del");
+    const f = followups.find((x) => x.id === id);
+    if (!f) return;
+    if (e.target.hasAttribute("data-open") && !(await openChat(f.chatName)))
+      status(`Não achei "${f.chatName}" na lista. Procure pela busca do WhatsApp.`, true);
+    if (e.target.hasAttribute("data-del")) {
+      await call("deleteFollowup", { id });
       refreshFollowups();
     }
   };
 
-  // ---------- Piloto automático ----------
-  // Vale para qualquer conversa marcada, aberta ou não. Para conversas fechadas,
-  // espera você ficar parado (sem digitar nem clicar) antes de abrir a conversa.
+  // ---------- Estado do piloto e da cadência ----------
   const IDLE_MS = 15000;
   let autopilot = new Set();
-  let handled = {}; // conversa -> id da última mensagem do cliente já tratada
-  let apBusy = false;
+  let handled = {}; // conversa -> id da última mensagem do cliente já respondida pelo piloto
+  let cadence = {}; // conversa -> { on, step, anchorAt, lastOutId }
+  let jobBusy = false;
   let lastUserActivity = Date.now();
 
   for (const t of ["keydown", "mousedown", "wheel", "touchstart"]) {
     document.addEventListener(t, (e) => e.isTrusted && (lastUserActivity = Date.now()), true);
   }
 
-  chrome.storage.local.get(["autopilot", "autopilotHandled", "chatState"], (data) => {
+  chrome.storage.local.get(["autopilot", "autopilotHandled", "chatState", "cadence"], async (data) => {
     autopilot = new Set(data.autopilot || []);
     handled = data.autopilotHandled || {};
     chatState = data.chatState || {};
+    cadence = data.cadence || {};
+    await loadSettings();
     currentChat = undefined;
     syncChat();
     renderAutolist();
+    refreshFollowups();
+  });
+
+  // Mantém todas as abas do WhatsApp com o mesmo estado: sem isso, uma aba antiga
+  // regravaria a configuração dela por cima (ex.: religar um piloto já desligado).
+  chrome.storage.onChanged.addListener((ch, area) => {
+    if (area !== "local") return;
+    if (ch.autopilot) autopilot = new Set(ch.autopilot.newValue || []);
+    if (ch.autopilotHandled) handled = ch.autopilotHandled.newValue || {};
+    if (ch.cadence) cadence = ch.cadence.newValue || {};
+    if (ch.chatState && !persistTimer) chatState = ch.chatState.newValue || {};
+    if (ch.autopilot || ch.cadence) {
+      renderAutolist();
+      $("zc-autopilot").checked = !!currentChat && autopilot.has(currentChat);
+      $("zc-cadence").checked = !!currentChat && !!cadence[currentChat]?.on;
+      renderCadenceInfo();
+    }
   });
 
   function saveAutopilot() {
     chrome.storage.local.set({ autopilot: [...autopilot], autopilotHandled: handled });
     renderAutolist();
+  }
+
+  function saveCadence() {
+    chrome.storage.local.set({ cadence });
+    renderCadenceInfo();
   }
 
   function renderAutolist() {
@@ -481,18 +557,95 @@
     saveAutopilot();
   };
 
+  // ---------- Cadência de inatividade ----------
+  const steps = () => (Array.isArray(settings.cadence) ? settings.cadence.filter((s) => s.minutes > 0) : []);
+
+  // Atualiza o estado da cadência olhando a conversa aberta.
+  // Lead respondeu -> para. Você mandou mensagem nova -> recomeça do passo 1.
+  function observeCadence(name) {
+    const st = cadence[name];
+    if (!st?.on) return;
+    const last = getMessages().at(-1);
+    if (!last) return;
+    if (!last.fromMe) {
+      if (st.anchorAt || st.step) Object.assign(st, { step: 0, anchorAt: null, lastOutId: null }), saveCadence();
+      return;
+    }
+    if (last.id !== st.lastOutId) {
+      Object.assign(st, { step: 0, anchorAt: Date.now(), lastOutId: last.id });
+      saveCadence();
+    }
+  }
+
+  function cadenceDue(name) {
+    const st = cadence[name];
+    const s = steps()[st?.step ?? 0];
+    if (!st?.on || !st.anchorAt || !s) return false;
+    return Date.now() >= st.anchorAt + s.minutes * 60000;
+  }
+
+  function renderCadenceInfo() {
+    const el = $("zc-cadence-info");
+    const list = steps();
+    const plan = list.map((s) => `${s.minutes} min`).join(" → ") || "nenhum passo configurado";
+    const st = currentChat && cadence[currentChat];
+    let line = `Passos: ${plan} (configure nas Opções).`;
+    if (st?.on) {
+      if (!st.anchorAt) line += " Aguardando você mandar uma mensagem sem resposta.";
+      else if (st.step >= list.length) line += " Cadência concluída; recomeça na sua próxima mensagem.";
+      else {
+        const wait = st.anchorAt + list[st.step].minutes * 60000 - Date.now();
+        line += ` Próximo: passo ${st.step + 1}/${list.length} em ${fmtDuration(wait)}.`;
+      }
+    }
+    el.textContent = line;
+  }
+
+  $("zc-cadence").onchange = (e) => {
+    const name = getChatName();
+    if (!name) return (e.target.checked = false);
+    if (e.target.checked) {
+      const last = getMessages().at(-1);
+      // Começa a contar agora se a última mensagem é sua; senão, espera a sua próxima.
+      cadence[name] = {
+        on: true,
+        step: 0,
+        anchorAt: last?.fromMe ? Date.now() : null,
+        lastOutId: last?.fromMe ? last.id : null,
+      };
+    } else {
+      delete cadence[name];
+    }
+    saveCadence();
+  };
+
+  function firstName(chatName) {
+    if (/^[+\d\s()-]+$/.test(chatName)) return "";
+    return chatName.split(/\s+/)[0];
+  }
+
+  async function cadenceText(name, index) {
+    const list = steps();
+    const s = list[index];
+    if (s.mode === "fixed") {
+      return s.text.replace(/\{nome\}/gi, firstName(name)).replace(/\s+([,.!?])/g, "$1").replace(/ {2,}/g, " ").trim();
+    }
+    return call("cadenceMessage", { conversation: getConversation(), step: index + 1, total: list.length });
+  }
+
+  // ---------- Envio com contagem regressiva ----------
   function toast(html) {
     $("zc-toast").innerHTML = html;
     $("zc-toast").classList.toggle("zc-hidden", !html);
   }
 
-  // Contagem regressiva visível mesmo com o painel fechado. Resolve true para enviar.
-  function countdown(name, reply, seconds) {
+  // Visível mesmo com o painel fechado. Resolve true para enviar.
+  function countdown(name, label, text, seconds) {
     return new Promise((resolve) => {
       let left = seconds;
       const draw = () =>
-        toast(`<p><b>Piloto automático</b> · ${esc(name)}</p>
-          <blockquote>${esc(reply)}</blockquote>
+        toast(`<p><b>${esc(label)}</b> · ${esc(name)}</p>
+          <blockquote>${esc(text)}</blockquote>
           <div class="zc-row"><span>Enviando em <b>${left}</b>s</span>
           <button id="zc-cancel">Cancelar</button><button id="zc-now">Enviar já</button></div>`);
       const finish = (ok) => {
@@ -501,7 +654,7 @@
         resolve(ok);
       };
       draw();
-      root.querySelector("#zc-toast").onclick = (e) => {
+      $("zc-toast").onclick = (e) => {
         if (e.target.id === "zc-cancel") finish(false);
         if (e.target.id === "zc-now") finish(true);
       };
@@ -514,52 +667,125 @@
     });
   }
 
+  async function sendWithCountdown(name, label, text) {
+    if (!text?.trim()) return false;
+    const ok = await countdown(name, label, text, Math.max(3, Number(settings.autoSendDelaySec ?? 20)));
+    if (!ok || getChatName() !== name) return false;
+    insertText(text);
+    await sleep(150);
+    clickSend();
+    await sleep(1500);
+    return true;
+  }
+
+  // ---------- Executor: uma tarefa por vez ----------
+  // Abre a conversa (se preciso), executa a tarefa e volta para onde você estava.
+  async function runJob(name, job) {
+    jobBusy = true;
+    const returnTo = getChatName();
+    try {
+      if (!(await openChat(name))) return false;
+      await job();
+      return true;
+    } catch (e) {
+      status(`${name}: ${e.message}`, true);
+      return false;
+    } finally {
+      if (returnTo && returnTo !== name && Date.now() - lastUserActivity > 3000) await openChat(returnTo);
+      jobBusy = false;
+    }
+  }
+
   function pendingIncoming(name) {
     const last = getMessages().at(-1);
     if (!last || last.fromMe || handled[name] === last.id) return null;
     return last;
   }
 
-  async function autopilotRun(name, returnTo) {
-    apBusy = true;
-    try {
-      if (!(await openChat(name))) return;
-      const last = pendingIncoming(name);
-      if (!last) return;
-      const { settings } = await chrome.storage.local.get("settings");
-      const reply = await call("reply", { conversation: getConversation() });
-      const ok = await countdown(name, reply, Math.max(3, Number(settings?.autoSendDelaySec ?? 20)));
-      handled[name] = last.id; // enviado ou cancelado: não insiste na mesma mensagem
-      saveAutopilot();
-      if (!ok || getChatName() !== name) return;
-      insertText(reply);
-      await sleep(150);
-      clickSend();
-      patchState(name, { lastAutoReply: reply });
-      await sleep(1500);
-      if (returnTo && returnTo !== name && Date.now() - lastUserActivity > 3000) await openChat(returnTo);
-    } catch (e) {
-      status(`Piloto automático (${name}): ${e.message}`, true);
-    } finally {
-      apBusy = false;
+  const autopilotJob = (name) => async () => {
+    const last = pendingIncoming(name);
+    if (!last) return;
+    const reply = await call("reply", { conversation: getConversation() });
+    const sent = await sendWithCountdown(name, "Piloto automático", reply);
+    handled[name] = last.id; // enviado ou cancelado: não insiste na mesma mensagem
+    saveAutopilot();
+    if (sent) patchState(name, { lastAutoReply: reply });
+  };
+
+  const followupJob = (f) => async () => {
+    await sendWithCountdown(f.chatName, "Follow-up agendado", f.message);
+    await call("completeFollowup", { id: f.id }); // enviado ou cancelado: sai da fila
+    refreshFollowups();
+  };
+
+  const cadenceJob = (name) => async () => {
+    observeCadence(name); // confere se o lead respondeu ou se você mandou algo novo
+    if (!cadenceDue(name)) return;
+    const st = cadence[name];
+    const index = st.step;
+    const text = await cadenceText(name, index);
+    const before = getMessages().at(-1)?.id;
+    const sent = await sendWithCountdown(name, `Cadência ${index + 1}/${steps().length}`, text);
+    let last = getMessages().at(-1);
+    // Espera a mensagem enviada aparecer para não confundi-la com uma mensagem nova sua.
+    for (let i = 0; sent && i < 20 && (!last?.fromMe || last.id === before); i++) {
+      await sleep(250);
+      last = getMessages().at(-1);
+    }
+    Object.assign(st, { step: index + 1, anchorAt: Date.now(), lastOutId: sent && last?.fromMe ? last.id : st.lastOutId });
+    saveCadence();
+  };
+
+  const failed = new Map(); // evita repetir em loop uma conversa que não está na lista
+  const canTry = (key) => !failed.has(key) || Date.now() - failed.get(key) > 5 * 60000;
+
+  async function tick() {
+    // Extensão recarregada: este script ficou órfão nesta aba e não deve mais agir.
+    if (!chrome.runtime?.id) return root.remove();
+    if (jobBusy) return;
+    const open = getChatName();
+    if (open) observeCadence(open);
+    renderCadenceInfo();
+
+    // 1) Conversa aberta com mensagem nova do cliente e piloto ligado.
+    if (open && autopilot.has(open) && pendingIncoming(open)) return runJob(open, autopilotJob(open));
+
+    // Daqui para baixo só age com você parado e sem rascunho no campo de mensagem.
+    const composer = document.querySelector(SEL.composer);
+    const drafting = composer && composer.innerText.trim().length > 0;
+    if (Date.now() - lastUserActivity < IDLE_MS || drafting) return;
+
+    const chats = listChats();
+    const unread = new Set(chats.filter((c) => c.unread).map((c) => c.name));
+
+    // 2) Piloto em conversa fechada com mensagem não lida.
+    const ap = chats.find((c) => c.unread && autopilot.has(c.name) && c.name !== open);
+    if (ap) return runJob(ap.name, autopilotJob(ap.name));
+
+    // 3) Follow-ups agendados que venceram.
+    const due = followups.find((f) => f.dueAt <= Date.now() && canTry(`fu:${f.id}`));
+    if (due) {
+      if (!(await runJob(due.chatName, followupJob(due)))) failed.set(`fu:${due.id}`, Date.now());
+      return;
+    }
+
+    // 4) Cadência de inatividade.
+    for (const name of Object.keys(cadence)) {
+      if (!cadence[name]?.on) continue;
+      if (unread.has(name)) {
+        // O lead respondeu com a conversa fechada: para a cadência.
+        if (cadence[name].anchorAt) Object.assign(cadence[name], { step: 0, anchorAt: null }), saveCadence();
+        continue;
+      }
+      if (cadenceDue(name) && canTry(`cad:${name}`)) {
+        if (!(await runJob(name, cadenceJob(name)))) failed.set(`cad:${name}`, Date.now());
+        return;
+      }
     }
   }
 
-  function autopilotTick() {
-    if (apBusy || !autopilot.size) return;
-    const open = getChatName();
-    // 1) Conversa aberta com mensagem nova do cliente.
-    if (open && autopilot.has(open) && pendingIncoming(open)) return autopilotRun(open, null);
-    // 2) Conversa marcada, mas fechada, com mensagens não lidas: só quando você está parado.
-    const idle = Date.now() - lastUserActivity > IDLE_MS;
-    const composer = document.querySelector(SEL.composer);
-    const drafting = composer && composer.innerText.trim().length > 0;
-    if (!idle || drafting) return;
-    const target = listChats().find((c) => c.unread && autopilot.has(c.name) && c.name !== open);
-    if (target) autopilotRun(target.name, open);
-  }
-
-  setInterval(autopilotTick, 3000);
+  setInterval(() => tick().catch((e) => console.warn("[Zap Copilot]", e)), 3000);
+  setInterval(refreshFollowups, 30000);
 
   // ---------- Observa trocas de conversa ----------
   let debounce = null;

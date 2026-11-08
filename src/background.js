@@ -2,7 +2,7 @@
 // e cuida dos lembretes de follow-up com chrome.alarms.
 import { getSettings, getFollowups, saveFollowups } from "./storage.js";
 import { chat, listModels } from "./llm.js";
-import { analyzePrompt, replyPrompt } from "./prompts.js";
+import { analyzePrompt, replyPrompt, followupPrompt, cadencePrompt } from "./prompts.js";
 
 const handlers = {
   async analyze({ conversation }) {
@@ -13,6 +13,23 @@ const handlers = {
   async reply({ conversation, instruction }) {
     const settings = await getSettings();
     return chat(settings, replyPrompt(settings, conversation, instruction), { temperature: 0.6 });
+  },
+
+  async suggestFollowup({ conversation }) {
+    const settings = await getSettings();
+    const s = await chat(settings, followupPrompt(settings, conversation), { json: true, temperature: 0.4 });
+    const minutes = Math.max(5, Math.round(Number(s.em_minutos) || 60 * 24));
+    return { dueAt: Date.now() + minutes * 60000, message: String(s.mensagem || ""), reason: String(s.motivo || "") };
+  },
+
+  async cadenceMessage({ conversation, step, total }) {
+    const settings = await getSettings();
+    return chat(settings, cadencePrompt(settings, conversation, step, total), { temperature: 0.7 });
+  },
+
+  async getSettings() {
+    const { apiKey, ...safe } = await getSettings(); // a chave nunca vai para a página
+    return safe;
   },
 
   async testKey() {

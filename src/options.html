@@ -17,6 +17,17 @@
     button { padding: 10px 16px; border: 0; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
     #save { background: #00a884; color: #fff; } #test { background: #e9edef; }
     #msg { color: #54656f; } #msg.err { color: #b3261e; }
+    h2 { font-size: 17px; margin: 32px 0 4px; padding-top: 20px; border-top: 1px solid #e9edef; }
+    .help { color: #54656f; font-size: 13px; margin: 4px 0 12px; line-height: 1.45; }
+    .step { border: 1px solid #d1d7db; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .step-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .step-head b { min-width: 64px; }
+    .step-head input[type=number] { width: 90px; }
+    .step-head select { width: auto; }
+    .step-head .grow { flex: 1; }
+    .step textarea { min-height: 70px; margin-top: 10px; }
+    .step .remove { background: none; color: #b3261e; padding: 6px 8px; }
+    button.ghost { background: #e9edef; }
     .note { margin-top: 28px; padding: 12px 14px; background: #fff8e1; border-radius: 8px; font-size: 13px; color: #5c4400; }
   </style>
 </head>
@@ -54,6 +65,12 @@
 
   <label for="autoSendDelaySec">Espera do piloto automático antes de enviar <small>(segundos)</small></label>
   <input id="autoSendDelaySec" type="number" min="3" max="600" />
+
+  <h2>Cadência de inatividade</h2>
+  <p class="help">Quando o lead para de responder, o Zap Copilot manda estes follow-ups em sequência. Cada tempo conta a partir da mensagem anterior: o 1º passo conta da sua última mensagem; o 2º, do 1º follow-up; e assim por diante. Se o lead responder, a cadência para e recomeça na próxima mensagem sem resposta. Ligue em cada conversa pelo painel no WhatsApp.</p>
+  <div id="cadence"></div>
+  <button id="addStep" type="button" class="ghost">+ Adicionar passo</button>
+  <p class="help">No texto fixo, <code>{nome}</code> vira o primeiro nome do contato (some quando o contato é só um número).</p>
 
   <div class="actions">
     <button id="save">Salvar</button>

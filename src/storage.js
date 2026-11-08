@@ -15,6 +15,12 @@ export const DEFAULT_SETTINGS = {
     "5. Proponha um próximo passo claro (call, proposta ou link de pagamento).",
   tone: "consultivo, próximo e objetivo; mensagens curtas como no WhatsApp",
   autoSendDelaySec: 20,
+  // Cadência de inatividade: cada passo conta a partir da mensagem anterior (sua ou do passo anterior).
+  cadence: [
+    { minutes: 5, mode: "ai", text: "" },
+    { minutes: 10, mode: "ai", text: "" },
+    { minutes: 15, mode: "ai", text: "" },
+  ],
 };
 
 export const PROVIDERS = {

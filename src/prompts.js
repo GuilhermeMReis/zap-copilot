@@ -38,6 +38,46 @@ export function analyzePrompt(settings, conversation) {
   ];
 }
 
+const NAME_RULES =
+  "Nunca invente nomes: use o nome do vendedor só se ele estiver informado (senão não se apresente pelo nome) " +
+  "e só chame o cliente pelo nome se o nome do contato parecer um nome de pessoa, nunca um número de telefone. ";
+
+export function followupPrompt(settings, conversation) {
+  return [
+    {
+      role: "system",
+      content:
+        "Você é um vendedor experiente planejando o próximo follow-up desta conversa de WhatsApp. " +
+        "Decida QUANDO retomar o contato e escreva a mensagem. Responda APENAS com JSON com as chaves: " +
+        '"em_minutos" (número inteiro: daqui a quantos minutos enviar; mínimo 5; use horas ou dias quando fizer sentido, ' +
+        "respeitando o que o cliente pediu, como \"me chama amanhã\" ou \"semana que vem\", e evite madrugada), " +
+        '"mensagem" (string: a mensagem pronta, curta, natural, que retome o ponto onde a conversa parou), ' +
+        '"motivo" (string curta: por que esse momento e essa mensagem). ' +
+        `Tom: ${settings.tone}. Português do Brasil, sem markdown. ` +
+        NAME_RULES +
+        "Nunca invente preço, prazo ou condição que não esteja no script.",
+    },
+    { role: "user", content: context(settings, conversation) },
+  ];
+}
+
+export function cadencePrompt(settings, conversation, step, total) {
+  return [
+    {
+      role: "system",
+      content:
+        `O cliente parou de responder. Escreva o follow-up de inatividade número ${step} de ${total}. ` +
+        "Leia o histórico e retome o ponto exato onde a conversa parou, com uma pergunta simples que facilite a resposta. " +
+        "Não repita mensagens que o vendedor já mandou, não cobre o cliente nem soe insistente; " +
+        (step === total ? "como é o último, deixe a porta aberta de forma leve. " : "") +
+        `Tom: ${settings.tone}. Português do Brasil, sem markdown, sem aspas, no máximo 2 frases curtas. ` +
+        NAME_RULES +
+        "Nunca invente preço, prazo ou condição que não esteja no script. Responda só com o texto da mensagem.",
+    },
+    { role: "user", content: context(settings, conversation) },
+  ];
+}
+
 export function replyPrompt(settings, conversation, instruction = "") {
   return [
     {
