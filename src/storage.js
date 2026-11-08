@@ -4,7 +4,7 @@
 export const DEFAULT_SETTINGS = {
   provider: "groq", // "groq" | "openai"
   apiKey: "",
-  model: "llama-3.3-70b-versatile",
+  model: "openai/gpt-oss-120b",
   businessName: "",
   salesScript:
     "1. Cumprimente pelo nome e se apresente.\n" +
@@ -20,7 +20,8 @@ export const PROVIDERS = {
   groq: {
     label: "Groq (tier gratuito)",
     baseUrl: "https://api.groq.com/openai/v1",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"],
+    // Lista de reserva; a tela de opções busca a lista atual em /models com a sua chave.
+    models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"],
     keyUrl: "https://console.groq.com/keys",
   },
   openai: {

@@ -1,7 +1,7 @@
 // Service worker: faz as chamadas ao LLM (evita CORS no content script)
 // e cuida dos lembretes de follow-up com chrome.alarms.
 import { getSettings, getFollowups, saveFollowups } from "./storage.js";
-import { chat } from "./llm.js";
+import { chat, listModels } from "./llm.js";
 import { analyzePrompt, replyPrompt } from "./prompts.js";
 
 const handlers = {
@@ -18,6 +18,10 @@ const handlers = {
   async testKey() {
     const settings = await getSettings();
     return chat(settings, [{ role: "user", content: "Responda apenas: ok" }], { temperature: 0 });
+  },
+
+  async listModels() {
+    return listModels(await getSettings());
   },
 
   async listFollowups() {

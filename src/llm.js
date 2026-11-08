@@ -1,6 +1,19 @@
 // Cliente único para OpenAI e Groq (a Groq expõe uma API compatível com a da OpenAI).
 import { PROVIDERS } from "./storage.js";
 
+// Modelos de chat disponíveis para a chave (filtra áudio, TTS e guardrails).
+export async function listModels(settings) {
+  const provider = PROVIDERS[settings.provider];
+  if (!settings.apiKey) throw new Error("Configure a sua chave de API.");
+  const res = await fetch(`${provider.baseUrl}/models`, {
+    headers: { Authorization: `Bearer ${settings.apiKey}` },
+  });
+  if (!res.ok) throw new Error(`Erro ${res.status} ao listar modelos. Confira a chave.`);
+  const { data } = await res.json();
+  const skip = /whisper|tts|orpheus|guard|safeguard|embedding|dall-e|image|audio|realtime|transcribe|moderation|search/i;
+  return data.map((m) => m.id).filter((id) => !skip.test(id)).sort();
+}
+
 export async function chat(settings, messages, { json = false, temperature = 0.4 } = {}) {
   const provider = PROVIDERS[settings.provider];
   if (!provider) throw new Error(`Provedor desconhecido: ${settings.provider}`);
@@ -23,6 +36,9 @@ export async function chat(settings, messages, { json = false, temperature = 0.4
     try {
       detail = (await res.json())?.error?.message || "";
     } catch {}
+    if (res.status === 404 && /model/i.test(detail)) {
+      detail += " Abra as Configurações e escolha um modelo da lista (ela vem do provedor).";
+    }
     throw new Error(`Erro ${res.status} do provedor ${provider.label}. ${detail}`.trim());
   }
 

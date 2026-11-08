@@ -39,10 +39,10 @@ Funciona também em Edge, Brave, Arc e Opera, que usam o mesmo motor (Chromium).
 
 | Provedor | Custo | Onde gerar | Modelo sugerido |
 |---|---|---|---|
-| **Groq** | Plano gratuito com limite de uso por minuto/dia | [console.groq.com/keys](https://console.groq.com/keys) | `llama-3.3-70b-versatile` (qualidade) ou `llama-3.1-8b-instant` (rápido) |
+| **Groq** | Plano gratuito com limite de uso por minuto/dia | [console.groq.com/keys](https://console.groq.com/keys) | `openai/gpt-oss-120b` (qualidade) ou `openai/gpt-oss-20b` (rápido) |
 | **OpenAI** | Pago por uso (centavos por conversa) | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | `gpt-4o-mini` |
 
-O campo de modelo aceita qualquer nome; se o provedor lançar um modelo novo, é só digitar.
+Ao clicar em **Testar chave**, a extensão busca no provedor a lista de modelos que a sua chave pode usar e preenche o campo. A Groq troca de modelos com frequência (os Llama, por exemplo, foram retirados), então escolha sempre um da lista.
 
 ### 4. Configure
 

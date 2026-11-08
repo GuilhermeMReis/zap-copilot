@@ -3,10 +3,31 @@ import { getSettings, saveSettings, PROVIDERS } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["provider", "model", "apiKey", "businessName", "salesScript", "tone", "autoSendDelaySec"];
 
+function fillModels(models) {
+  $("models").innerHTML = models.map((m) => `<option value="${m}">`).join("");
+}
+
 function fillProvider(provider) {
   const p = PROVIDERS[provider];
-  $("models").innerHTML = p.models.map((m) => `<option value="${m}">`).join("");
+  fillModels(p.models);
   $("keyLink").href = p.keyUrl;
+}
+
+// Busca no provedor os modelos que a chave realmente pode usar.
+function refreshModels() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "listModels" }, (res) => {
+      if (res?.ok && res.data.length) {
+        fillModels(res.data);
+        if (!res.data.includes($("model").value)) {
+          const p = PROVIDERS[$("provider").value];
+          $("model").value = p.models.find((m) => res.data.includes(m)) || res.data[0];
+          say(`O modelo salvo não está disponível; troquei para ${$("model").value}.`);
+        }
+      }
+      resolve(res);
+    });
+  });
 }
 
 async function load() {
@@ -16,6 +37,7 @@ async function load() {
   const s = await getSettings();
   for (const f of FIELDS) $(f).value = s[f] ?? "";
   fillProvider(s.provider);
+  if (s.apiKey) refreshModels();
 }
 
 $("provider").onchange = (e) => {
@@ -43,6 +65,9 @@ $("save").onclick = async () => {
 $("test").onclick = async () => {
   await save();
   say("Testando…");
+  const models = await refreshModels();
+  if (!models?.ok) return say(models?.error || "Falhou.", true);
+  await save(); // salva o modelo corrigido, se mudou
   chrome.runtime.sendMessage({ type: "testKey" }, (res) => {
     if (res?.ok) say(`Funcionou: o modelo respondeu "${res.data}".`);
     else say(res?.error || chrome.runtime.lastError?.message || "Falhou.", true);
