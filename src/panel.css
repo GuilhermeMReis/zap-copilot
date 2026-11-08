@@ -29,3 +29,15 @@
 #zc-countdown blockquote { margin: 6px 0; padding: 8px; background: var(--zc-card); border-radius: 8px; }
 #zc-status { padding: 10px 16px; color: var(--zc-muted); min-height: 18px; }
 #zc-status.zc-error { color: #f87171; }
+#zc-toast { position: fixed; right: 18px; bottom: 146px; z-index: 99999; width: 320px; background: #202c33; color: #e9edef; border: 1px solid #00a884; border-radius: 12px; padding: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.45); font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+#zc-toast.zc-hidden { display: none; }
+#zc-toast p { margin: 0; }
+#zc-toast blockquote { margin: 0; padding: 8px; background: #111b21; border-radius: 8px; max-height: 120px; overflow: auto; }
+#zc-toast .zc-row { display: flex; gap: 6px; align-items: center; }
+#zc-toast .zc-row span { flex: 1; }
+#zc-toast button { background: #2a3942; color: #e9edef; border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; }
+#zc-toast #zc-now { background: #00a884; color: #fff; }
+#zc-autolist { list-style: none; padding: 0 !important; display: flex; flex-wrap: wrap; gap: 6px; }
+#zc-autolist:empty { display: none; }
+#zc-autolist li { display: flex; align-items: center; gap: 4px; background: #103529; border: 1px solid #00a884; border-radius: 99px; padding: 2px 4px 2px 10px; font-size: 12px; }
+#zc-autolist button { padding: 0 6px !important; background: none !important; color: #8696a0 !important; font-size: 14px !important; }

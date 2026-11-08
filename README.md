@@ -6,7 +6,8 @@ Você cola uma chave da **Groq** (tem plano gratuito) ou da **OpenAI** e a exten
 - **Analisar a conversa aberta**: resumo, etapa do funil, temperatura do lead, intenção, objeções e em que passo do seu script a conversa está.
 - **Sugerir a próxima mensagem** seguindo o seu script de vendas e o seu tom de voz. Você revisa, edita e envia.
 - **Agendar follow-ups** com lembrete por notificação do Chrome. A análise já sugere quando retomar e o texto da mensagem.
-- **Piloto automático (opcional, por conversa)**: responde sozinho às novas mensagens do cliente, com uma contagem regressiva para você cancelar antes do envio.
+- **Piloto automático (opcional, por conversa)**: responde sozinho às novas mensagens das conversas marcadas, **mesmo que estejam fechadas**. Quando você fica 15 segundos parado, o Zap Copilot abre a conversa com mensagem nova, mostra a resposta com uma contagem regressiva (Cancelar / Enviar já) e volta para a conversa em que você estava.
+- **Contexto por conversa**: análise, resposta sugerida, instrução extra e rascunho de follow-up ficam guardados por conversa. Ao trocar de conversa, o painel mostra o que é daquela conversa.
 
 Tudo roda na sua máquina. Não existe servidor do Zap Copilot: a chave, o script e os follow-ups ficam no `chrome.storage.local` do seu navegador, e o texto da conversa só vai para o provedor de IA que você escolheu, na hora em que você pede.
 
@@ -59,6 +60,8 @@ Clique no ícone da extensão → **Configurações** e preencha:
 2. Clique no botão verde ✦ no canto inferior direito para abrir o painel.
 3. **Analisar conversa** → **Sugerir resposta** → **Colocar no chat** (você confere e aperta Enter) ou **Enviar**.
 4. Em **Agendar follow-up**, escolha a data (a análise já preenche uma sugestão) e clique em **Agendar**. Na hora você recebe uma notificação; o lembrete aparece na lista do painel com o botão **Usar texto**.
+
+> O piloto automático só funciona com o WhatsApp Web aberto em uma aba (pode estar em segundo plano) e só alcança conversas que aparecem na lista lateral — conversas com mensagem nova sobem para o topo, então isso cobre o caso normal.
 
 > A extensão lê só as mensagens **carregadas na tela** da conversa aberta (as últimas 40). Para dar mais contexto, role a conversa para cima antes de analisar.
 

@@ -156,11 +156,43 @@
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // ---------- Lista de conversas ----------
+  function listChats() {
+    return [...document.querySelectorAll('#pane-side [role="row"]')].map((row) => ({
+      row,
+      name: row.querySelector('[data-testid="cell-frame-title"] [title]')?.getAttribute("title") || "",
+      unread: !!row.querySelector('[aria-label*="unread" i], [aria-label*="não lida" i], [aria-label*="no leído" i]'),
+    }));
+  }
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Abre uma conversa da lista lateral (o WhatsApp só reage a eventos de mouse completos).
+  async function openChat(name) {
+    if (getChatName() === name) return true;
+    const chat = listChats().find((c) => c.name === name);
+    if (!chat) return false;
+    const el = chat.row.querySelector('[data-testid="cell-frame-container"]') || chat.row;
+    const opts = { bubbles: true, cancelable: true, view: window };
+    for (const t of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+      el.dispatchEvent(new (t.startsWith("pointer") ? PointerEvent : MouseEvent)(t, opts));
+    }
+    for (let i = 0; i < 25; i++) {
+      await sleep(200);
+      if (getChatName() === name && getMessages().length) {
+        await sleep(400); // deixa as últimas mensagens renderizarem
+        return true;
+      }
+    }
+    return false;
+  }
+
   // ---------- Painel ----------
   const root = document.createElement("div");
   root.id = "zc-root";
   root.innerHTML = `
     <button id="zc-toggle" title="Zap Copilot">✦</button>
+    <div id="zc-toast" class="zc-hidden"></div>
     <aside id="zc-panel" class="zc-hidden">
       <header>
         <strong>Zap Copilot</strong>
@@ -191,8 +223,8 @@
       </section>
       <section>
         <label class="zc-switch"><input type="checkbox" id="zc-autopilot" /> Piloto automático nesta conversa</label>
-        <p class="zc-hint">Responde sozinho às novas mensagens do cliente com o seu script, após uma contagem regressiva que você pode cancelar. Use com cuidado.</p>
-        <div id="zc-countdown"></div>
+        <p class="zc-hint">Responde sozinho às novas mensagens desta conversa, mesmo com outra aberta: quando você fica parado, o Zap Copilot abre a conversa, responde após uma contagem regressiva (dá para cancelar) e volta para onde você estava.</p>
+        <ul id="zc-autolist"></ul>
       </section>
       <section>
         <label>Follow-ups pendentes</label>
@@ -208,6 +240,71 @@
     $("zc-status").className = isError ? "zc-error" : "";
   };
 
+  function toLocalInput(ts) {
+    const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 16);
+  }
+
+  // ---------- Estado por conversa ----------
+  // Cada conversa guarda a sua análise, resposta, instrução e rascunho de follow-up.
+  let chatState = {};
+  let currentChat = null;
+  const FORM = { instruction: "zc-instruction", reply: "zc-reply", when: "zc-when", note: "zc-note" };
+
+  let persistTimer = null;
+  function persistState() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => chrome.storage.local.set({ chatState }), 500);
+  }
+
+  function patchState(name, patch) {
+    if (!name) return;
+    chatState[name] = { ...(chatState[name] || {}), ...patch, updatedAt: Date.now() };
+    persistState();
+  }
+
+  function saveForm() {
+    if (!currentChat) return;
+    patchState(
+      currentChat,
+      Object.fromEntries(Object.entries(FORM).map(([k, id]) => [k, $(id).value]))
+    );
+  }
+
+  function renderAnalysis(a) {
+    if (!a) return ($("zc-analysis").innerHTML = "");
+    const list = (arr) => (arr?.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "—");
+    $("zc-analysis").innerHTML = `
+      <div class="zc-tags">
+        <span class="zc-tag">${esc(a.etapa)}</span>
+        <span class="zc-tag zc-${esc(a.temperatura)}">${esc(a.temperatura)}</span>
+      </div>
+      <p>${esc(a.resumo)}</p>
+      <p><b>Intenção:</b> ${esc(a.intencao)}</p>
+      <p><b>Objeções:</b></p>${list(a.objecoes)}
+      <p><b>Script:</b> ${esc(a.passo_do_script)}</p>
+      <p><b>Próxima ação:</b> ${esc(a.proxima_acao)}</p>`;
+  }
+
+  function restoreForm(name) {
+    const s = (name && chatState[name]) || {};
+    for (const [k, id] of Object.entries(FORM)) $(id).value = s[k] || "";
+    renderAnalysis(s.analysis);
+  }
+
+  for (const id of Object.values(FORM)) $(id).addEventListener("input", saveForm);
+
+  function syncChat() {
+    const name = getChatName();
+    if (name === currentChat) return;
+    currentChat = name;
+    $("zc-chat").textContent = name || "—";
+    $("zc-autopilot").checked = !!name && autopilot.has(name);
+    status("");
+    restoreForm(name);
+  }
+
+  // Botões de IA: o resultado vai para a conversa em que foi pedido, mesmo se você trocar no meio.
   async function busy(button, fn) {
     button.disabled = true;
     status("Pensando…");
@@ -221,29 +318,7 @@
     }
   }
 
-  function toLocalInput(ts) {
-    const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
-    return d.toISOString().slice(0, 16);
-  }
-
-  function renderAnalysis(a) {
-    const list = (arr) => (arr?.length ? `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "—");
-    $("zc-analysis").innerHTML = `
-      <div class="zc-tags">
-        <span class="zc-tag">${esc(a.etapa)}</span>
-        <span class="zc-tag zc-${esc(a.temperatura)}">${esc(a.temperatura)}</span>
-      </div>
-      <p>${esc(a.resumo)}</p>
-      <p><b>Intenção:</b> ${esc(a.intencao)}</p>
-      <p><b>Objeções:</b></p>${list(a.objecoes)}
-      <p><b>Script:</b> ${esc(a.passo_do_script)}</p>
-      <p><b>Próxima ação:</b> ${esc(a.proxima_acao)}</p>`;
-    if (a.followup_em_horas > 0) {
-      $("zc-when").value = toLocalInput(Date.now() + a.followup_em_horas * 3600000);
-      $("zc-note").value = a.mensagem_followup || a.proxima_acao || "";
-    }
-  }
-
+  // ---------- Follow-ups ----------
   async function refreshFollowups() {
     const items = (await call("listFollowups")).filter((f) => !f.done);
     $("zc-followups").innerHTML =
@@ -254,6 +329,7 @@
             <b>${esc(f.chatName)}</b> · ${new Date(f.dueAt).toLocaleString("pt-BR")}
             <small>${esc(f.note)}</small>
             <span class="zc-row">
+              <button data-open="${f.id}">Abrir</button>
               <button data-use="${f.id}">Usar texto</button>
               <button data-done="${f.id}">Feito</button>
             </span>
@@ -268,18 +344,31 @@
     $("zc-panel").classList.toggle("zc-hidden");
     syncChat();
     refreshFollowups().catch(() => {});
+    renderAutolist();
   };
   $("zc-close").onclick = () => $("zc-panel").classList.add("zc-hidden");
 
   $("zc-analyze").onclick = (e) =>
-    busy(e.target, async () => renderAnalysis(await call("analyze", { conversation: getConversation() })));
+    busy(e.target, async () => {
+      const conversation = getConversation();
+      const name = conversation.chatName;
+      const a = await call("analyze", { conversation });
+      const patch = { analysis: a };
+      if (a.followup_em_horas > 0) {
+        patch.when = toLocalInput(Date.now() + a.followup_em_horas * 3600000);
+        patch.note = a.mensagem_followup || a.proxima_acao || "";
+      }
+      patchState(name, patch);
+      if (currentChat === name) restoreForm(name);
+    });
 
   $("zc-suggest").onclick = (e) =>
     busy(e.target, async () => {
-      $("zc-reply").value = await call("reply", {
-        conversation: getConversation(),
-        instruction: $("zc-instruction").value.trim(),
-      });
+      const conversation = getConversation();
+      const name = conversation.chatName;
+      const reply = await call("reply", { conversation, instruction: $("zc-instruction").value.trim() });
+      patchState(name, { reply });
+      if (currentChat === name) $("zc-reply").value = reply;
     });
 
   $("zc-insert").onclick = () => {
@@ -296,6 +385,7 @@
       insertText($("zc-reply").value);
       setTimeout(clickSend, 150);
       $("zc-reply").value = "";
+      saveForm();
     } catch (e) {
       status(e.message, true);
     }
@@ -308,99 +398,173 @@
       const dueAt = new Date($("zc-when").value).getTime();
       if (!dueAt || dueAt < Date.now()) throw new Error("Escolha uma data no futuro.");
       await call("addFollowup", { chatName, dueAt, note: $("zc-note").value, message: $("zc-note").value });
+      $("zc-when").value = "";
+      $("zc-note").value = "";
+      saveForm();
       await refreshFollowups();
       status("Follow-up agendado. Você recebe uma notificação na hora.");
     });
 
   $("zc-followups").onclick = async (e) => {
     const items = $("zc-followups").__items || [];
-    const useId = e.target.getAttribute("data-use");
-    const doneId = e.target.getAttribute("data-done");
-    if (useId) $("zc-reply").value = items.find((f) => f.id === useId)?.message || "";
-    if (doneId) {
-      await call("completeFollowup", { id: doneId });
+    const item = (attr) => items.find((f) => f.id === e.target.getAttribute(attr));
+    if (e.target.hasAttribute("data-open")) {
+      const f = item("data-open");
+      if (!(await openChat(f.chatName))) status(`Não achei "${f.chatName}" na lista. Procure pela busca do WhatsApp.`, true);
+    }
+    if (e.target.hasAttribute("data-use")) {
+      const f = item("data-use");
+      if (getChatName() !== f.chatName && !(await openChat(f.chatName)))
+        return status(`Abra a conversa "${f.chatName}" para usar o texto.`, true);
+      syncChat();
+      $("zc-reply").value = f.message || "";
+      saveForm();
+    }
+    if (e.target.hasAttribute("data-done")) {
+      await call("completeFollowup", { id: e.target.getAttribute("data-done") });
       refreshFollowups();
     }
   };
 
   // ---------- Piloto automático ----------
+  // Vale para qualquer conversa marcada, aberta ou não. Para conversas fechadas,
+  // espera você ficar parado (sem digitar nem clicar) antes de abrir a conversa.
+  const IDLE_MS = 15000;
   let autopilot = new Set();
-  const handled = new Map(); // chatName -> id da última mensagem do cliente já tratada
-  let countdownTimer = null;
+  let handled = {}; // conversa -> id da última mensagem do cliente já tratada
+  let apBusy = false;
+  let lastUserActivity = Date.now();
 
-  chrome.storage.local.get("autopilot", ({ autopilot: list }) => {
-    autopilot = new Set(list || []);
+  for (const t of ["keydown", "mousedown", "wheel", "touchstart"]) {
+    document.addEventListener(t, (e) => e.isTrusted && (lastUserActivity = Date.now()), true);
+  }
+
+  chrome.storage.local.get(["autopilot", "autopilotHandled", "chatState"], (data) => {
+    autopilot = new Set(data.autopilot || []);
+    handled = data.autopilotHandled || {};
+    chatState = data.chatState || {};
+    currentChat = undefined;
     syncChat();
+    renderAutolist();
   });
+
+  function saveAutopilot() {
+    chrome.storage.local.set({ autopilot: [...autopilot], autopilotHandled: handled });
+    renderAutolist();
+  }
+
+  function renderAutolist() {
+    $("zc-autolist").innerHTML = [...autopilot]
+      .map((n) => `<li><span>${esc(n)}</span><button data-off="${esc(n)}" title="Desligar">×</button></li>`)
+      .join("");
+  }
+
+  $("zc-autolist").onclick = (e) => {
+    const name = e.target.getAttribute("data-off");
+    if (!name) return;
+    autopilot.delete(name);
+    saveAutopilot();
+    if (currentChat === name) $("zc-autopilot").checked = false;
+  };
 
   $("zc-autopilot").onchange = (e) => {
     const name = getChatName();
     if (!name) return (e.target.checked = false);
-    e.target.checked ? autopilot.add(name) : autopilot.delete(name);
-    chrome.storage.local.set({ autopilot: [...autopilot] });
-    // Não responde mensagens que já estavam na tela quando o piloto foi ligado.
-    const last = getMessages().at(-1);
-    if (last) handled.set(name, last.id);
+    if (e.target.checked) {
+      autopilot.add(name);
+      // Não responde mensagens que já estavam na conversa quando o piloto foi ligado.
+      const last = getMessages().at(-1);
+      if (last) handled[name] = last.id;
+    } else {
+      autopilot.delete(name);
+    }
+    saveAutopilot();
   };
 
-  function cancelCountdown() {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-    $("zc-countdown").innerHTML = "";
+  function toast(html) {
+    $("zc-toast").innerHTML = html;
+    $("zc-toast").classList.toggle("zc-hidden", !html);
   }
 
-  async function maybeAutoReply() {
-    const name = getChatName();
-    if (!name || !autopilot.has(name) || countdownTimer) return;
-    const last = getMessages().at(-1);
-    if (!last || last.fromMe || handled.get(name) === last.id) return;
-    handled.set(name, last.id);
+  // Contagem regressiva visível mesmo com o painel fechado. Resolve true para enviar.
+  function countdown(name, reply, seconds) {
+    return new Promise((resolve) => {
+      let left = seconds;
+      const draw = () =>
+        toast(`<p><b>Piloto automático</b> · ${esc(name)}</p>
+          <blockquote>${esc(reply)}</blockquote>
+          <div class="zc-row"><span>Enviando em <b>${left}</b>s</span>
+          <button id="zc-cancel">Cancelar</button><button id="zc-now">Enviar já</button></div>`);
+      const finish = (ok) => {
+        clearInterval(timer);
+        toast("");
+        resolve(ok);
+      };
+      draw();
+      root.querySelector("#zc-toast").onclick = (e) => {
+        if (e.target.id === "zc-cancel") finish(false);
+        if (e.target.id === "zc-now") finish(true);
+      };
+      const timer = setInterval(() => {
+        left -= 1;
+        if (getChatName() !== name) return finish(false);
+        if (left <= 0) return finish(true);
+        draw();
+      }, 1000);
+    });
+  }
 
+  function pendingIncoming(name) {
+    const last = getMessages().at(-1);
+    if (!last || last.fromMe || handled[name] === last.id) return null;
+    return last;
+  }
+
+  async function autopilotRun(name, returnTo) {
+    apBusy = true;
     try {
+      if (!(await openChat(name))) return;
+      const last = pendingIncoming(name);
+      if (!last) return;
       const { settings } = await chrome.storage.local.get("settings");
       const reply = await call("reply", { conversation: getConversation() });
-      let left = Math.max(3, Number(settings?.autoSendDelaySec ?? 20));
-      $("zc-countdown").innerHTML = `<p>Enviando em <b id="zc-left">${left}</b>s:</p>
-        <blockquote>${esc(reply)}</blockquote><button id="zc-cancel">Cancelar</button>`;
-      $("zc-cancel").onclick = cancelCountdown;
-      countdownTimer = setInterval(() => {
-        left -= 1;
-        const el = root.querySelector("#zc-left");
-        if (el) el.textContent = left;
-        if (left > 0) return;
-        cancelCountdown();
-        if (getChatName() !== name) return status("Conversa mudou; envio automático cancelado.", true);
-        insertText(reply);
-        setTimeout(clickSend, 150);
-      }, 1000);
+      const ok = await countdown(name, reply, Math.max(3, Number(settings?.autoSendDelaySec ?? 20)));
+      handled[name] = last.id; // enviado ou cancelado: não insiste na mesma mensagem
+      saveAutopilot();
+      if (!ok || getChatName() !== name) return;
+      insertText(reply);
+      await sleep(150);
+      clickSend();
+      patchState(name, { lastAutoReply: reply });
+      await sleep(1500);
+      if (returnTo && returnTo !== name && Date.now() - lastUserActivity > 3000) await openChat(returnTo);
     } catch (e) {
-      status(e.message, true);
+      status(`Piloto automático (${name}): ${e.message}`, true);
+    } finally {
+      apBusy = false;
     }
   }
 
-  // ---------- Observa trocas de conversa e mensagens novas ----------
-  let currentChat = null;
-  function syncChat() {
-    const name = getChatName();
-    if (name === currentChat) return;
-    currentChat = name;
-    cancelCountdown();
-    $("zc-chat").textContent = name || "—";
-    $("zc-autopilot").checked = !!name && autopilot.has(name);
-    $("zc-analysis").innerHTML = "";
-    $("zc-reply").value = "";
-    if (name && !handled.has(name)) {
-      const last = getMessages().at(-1);
-      if (last) handled.set(name, last.id);
-    }
+  function autopilotTick() {
+    if (apBusy || !autopilot.size) return;
+    const open = getChatName();
+    // 1) Conversa aberta com mensagem nova do cliente.
+    if (open && autopilot.has(open) && pendingIncoming(open)) return autopilotRun(open, null);
+    // 2) Conversa marcada, mas fechada, com mensagens não lidas: só quando você está parado.
+    const idle = Date.now() - lastUserActivity > IDLE_MS;
+    const composer = document.querySelector(SEL.composer);
+    const drafting = composer && composer.innerText.trim().length > 0;
+    if (!idle || drafting) return;
+    const target = listChats().find((c) => c.unread && autopilot.has(c.name) && c.name !== open);
+    if (target) autopilotRun(target.name, open);
   }
 
+  setInterval(autopilotTick, 3000);
+
+  // ---------- Observa trocas de conversa ----------
   let debounce = null;
   new MutationObserver(() => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      syncChat();
-      maybeAutoReply();
-    }, 800);
+    debounce = setTimeout(syncChat, 300);
   }).observe(document.body, { childList: true, subtree: true });
 })();
